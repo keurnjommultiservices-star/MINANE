@@ -64,6 +64,10 @@ header.top img.hl{height:30px;width:auto;background:#000;border-radius:6px;paddi
 .ic{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none;vertical-align:-4px;margin-right:6px}
 nav.tabs button .ic{margin-right:5px}.kpi small .ic{width:15px;height:15px;margin-right:4px;vertical-align:-3px}.btn .ic{stroke:#fff;color:#fff!important}.btn.sec .ic{stroke:currentColor}
 header.top .pill .ic{margin-right:4px;width:14px;height:14px;vertical-align:-2px;color:#fff!important}
+.modes{display:flex;gap:6px;margin:0 0 14px;max-width:420px}.modes button{flex:1;border:1px solid var(--bd);background:#fff;border-radius:10px;padding:10px;font-weight:600}.modes button.on{background:var(--g);color:#fff;border-color:var(--g)}
+.best{display:flex;align-items:center;gap:10px;border:1px solid var(--bd);border-radius:12px;padding:10px 12px;background:#f7faf8;margin-bottom:8px}
+.tw{overflow-x:auto}.lg{display:flex;gap:14px;font-size:12px;color:var(--mu);margin-bottom:4px}.lg .sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px}
+@keyframes bl{50%{opacity:.45}}.blink{animation:bl 1.3s infinite}
 .mu{color:var(--mu)}.r{text-align:right}
 #rcpt{display:none}
 @media print{body>*:not(#rcpt){display:none!important}#rcpt{display:block;font:12px/1.35 monospace;width:72mm;margin:0;color:#000}}
@@ -76,7 +80,7 @@ header.top .pill .ic{margin-right:4px;width:14px;height:14px;vertical-align:-2px
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 'use strict';
-const BUILD='1.2';
+const BUILD='1.3';
 const SB_URL='https://ehnptnwvwshmcaqrupru.supabase.co';
 const SB_KEY='sb_publishable_h3I7whuNEfbnfub_Q0eP6w_e77YMUqn';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
@@ -137,8 +141,13 @@ async function _sync(){
     }
   }finally{syncing=false}
   if(done)toast(done+' opération(s) synchronisée(s)');
+  beat();
   if(changed){await loadCashier(false);draw()}
   paintNet();
+}
+async function beat(){
+  if(!navigator.onLine||!me||me.role!=='cashier')return;
+  try{await sb.from('store_status').upsert({store_id:me.store_id,last_seen:new Date().toISOString(),pending:getQ().length},{onConflict:'store_id'})}catch{}
 }
 function pendingStockDelta(){
   const m=new Map();
@@ -178,7 +187,7 @@ async function start(){
   if(me.role==='cashier'){S.tab='caisse';await loadCashier(true);await syncQueue()}
   else{S.tab=me.role==='central'?'stock':'apercu';await loadDirector()}
   draw();
-  if(me.role==='cashier')setInterval(()=>syncQueue(),20000);
+  if(me.role==='cashier'){setInterval(()=>syncQueue(),20000);setInterval(beat,30000);beat()}
   if(me.role==='director'||me.role==='admin'){setInterval(()=>{loadDirector().then(()=>{if(S.tab==='apercu'||S.tab==='versements')draw()})},60000);subscribeRT()}
 }
 async function logout(){if(getQ().length&&!confirm('Des ventes ne sont pas encore envoyées. Se déconnecter quand même ?'))return;await sb.auth.signOut();me=null;loginScreen()}
@@ -226,7 +235,7 @@ function draw(){
   if(me.role==='cashier')drawCashier();else drawDirector();
   bindShell();
 }
-window.addEventListener('online',()=>{paintNet();syncQueue()});
+window.addEventListener('online',()=>{paintNet();beat();syncQueue()});
 window.addEventListener('offline',paintNet);
 
 /* ---------- CAISSE ---------- */
@@ -386,16 +395,35 @@ function bindCloture(){
 }
 
 /* ---------- DIRECTION ---------- */
-let D={sales:[],closures:[],vers:[],stock:{},arts:[],day:dayOf(),store:'SAN',imp:null};
+const CATS=['Loyer','Salaires','Transport','Repas équipe','Électricité (SENELEC)','Eau (SONES)','Téléphone (fibre optique)','Fournitures','Entretien','Achat marchandises'];
+const FIBRE='Téléphone (fibre optique)';
+const MONTHLY=['Loyer','Salaires','Électricité (SENELEC)','Eau (SONES)',FIBRE];
+const SHORT={SAN:'Sandaga',MIR:'Chrisbella',HLM:'HLM 5',TOU:'Touba 28',PIK:'Pikine',CEN:'Central'};
+const dayStr=i=>{const d=new Date();d.setUTCDate(d.getUTCDate()-i);return d.toISOString().slice(0,10)};
+const daysOf=n=>Array.from({length:n},(_,i)=>dayStr(n-1-i));
+const dmy=d=>d.slice(8)+'/'+d.slice(5,7);
+const dmyFull=d=>d.split('-').reverse().join('/');
+const signed=n=>(n>=0?'+':'−')+fmt(Math.abs(n));
+const compact=n=>Math.round(n).toLocaleString('fr-FR').replace(/[  ]/g,' ');
+const WD=['dim','lun','mar','mer','jeu','ven','sam'];
+let D={per:'7',summary:[],sellers:[],alerts:[],exp:[],credits:[],recent:[],status:[],vers:[],closures:[],vendors:[],stock:{},arts:[],store:'SAN',imp:null,rapp:LS.get('rapp',{tel:'',mail:''})};
 let rt=null,rtT=null;
 async function loadDirector(){
-  const day=D.day;
   try{
     D.arts=await cached('arts_d',()=>qAll(()=>sb.from('articles').select('*').order('name')));
     if(me.role==='central'){D.stock.CEN=await cached('stk_CEN',()=>qAll(()=>sb.from('stock').select('article_id,size,color,qty').eq('store_id','CEN').order('article_id')));return}
-    D.sales=await q(sb.from('sales').select('id,store_id,ticket_no,total,sold_at,sale_payments(method,amount)').gte('sold_at',day+'T00:00:00Z').lt('sold_at',day+'T23:59:59.999Z').order('sold_at',{ascending:false}).limit(5000));
-    D.closures=await q(sb.from('closures').select('*').eq('day',day));
-    D.vers=await q(sb.from('versements').select('*').order('created_at',{ascending:false}).limit(200));
+    const [summary,sellers,alerts,exp,credits,recent,status,vers,closures,vendors]=await Promise.all([
+      q(sb.from('daily_summary').select('*').gte('day',dayStr(29))),
+      q(sb.from('daily_sellers').select('*').gte('day',dayStr(29))),
+      q(sb.from('stock_alerts').select('*')),
+      q(sb.from('expenses').select('*').gte('day',dayStr(62)).order('day',{ascending:false})),
+      q(sb.from('credits').select('id,store_id,customer_name,amount,paid,due_date,created_at')),
+      q(sb.from('sales').select('id,store_id,ticket_no,total,sold_at,customer_name,seller_id,sale_payments(method,amount)').gte('sold_at',dayStr(0)+'T00:00:00Z').order('sold_at',{ascending:false}).limit(7)),
+      q(sb.from('store_status').select('*')),
+      q(sb.from('versements').select('*').order('created_at',{ascending:false}).limit(200)),
+      q(sb.from('closures').select('*').eq('day',dayStr(0))),
+      q(sb.from('vendors').select('id,full_name,store_id'))]);
+    Object.assign(D,{summary,sellers,alerts,exp,credits,recent,status,vers,closures,vendors});
   }catch(e){toast('Connexion impossible : '+(e.message||e))}
 }
 async function loadDirStock(st){
@@ -403,35 +431,138 @@ async function loadDirStock(st){
 }
 function subscribeRT(){
   if(rt)return;
-  const bump=()=>{clearTimeout(rtT);rtT=setTimeout(async()=>{await loadDirector();if(['apercu','versements'].includes(S.tab)){draw()}},600)};
+  const bump=()=>{clearTimeout(rtT);rtT=setTimeout(async()=>{await loadDirector();if(['apercu','versements','depenses'].includes(S.tab)){draw()}},600)};
   rt=sb.channel('direction');
-  ['sales','versements','closures','sale_payments'].forEach(t=>rt.on('postgres_changes',{event:'*',schema:'public',table:t},bump));
+  ['sales','versements','closures','store_status','expenses'].forEach(t=>rt.on('postgres_changes',{event:'*',schema:'public',table:t},bump));
   rt.subscribe();
 }
 function drawDirector(){
   const central=me.role==='central';
-  const tabs=central?[['stock',ic('store')+'Stock du Central']]:[['apercu',ic('layout-dashboard')+'Vue d’ensemble'],['versements',ic('wallet')+'Versements'],['stock',ic('package')+'Stock'],['import',ic('clipboard-list')+'Inventaire (import)']];
+  const tabs=central?[['stock',ic('store')+'Stock du Central']]:[['apercu',ic('layout-dashboard')+'Tableau de bord'+(pendingVers()?` <span class="badge b-bad">${pendingVers()}</span>`:'')],['stock',ic('package')+'Stock'],['versements',ic('wallet')+'Versements'],['depenses',ic('wallet')+'Dépenses'],['import',ic('clipboard-list')+'Inventaire (import)']];
   let b='';
   if(S.tab==='apercu')b=dirOverview();
   else if(S.tab==='versements')b=dirVers();
+  else if(S.tab==='depenses')b=dirDepenses();
   else if(S.tab==='stock')b=dirStock();
   else b=dirImport();
   $('#app').innerHTML=shell(tabs,b);
-  if(S.tab==='apercu'){const d=$('#dday');d.onchange=async()=>{D.day=d.value;await loadDirector();draw()}}
+  if(S.tab==='apercu')bindOverview();
   if(S.tab==='versements')bindVers();
+  if(S.tab==='depenses')bindDepenses();
   if(S.tab==='stock')bindDirStock();
   if(S.tab==='import')bindImport();
 }
+const pendingVers=()=>D.vers.filter(v=>v.status==='pending').length;
+const perLabel=()=>D.per==='1'?'aujourd’hui':D.per==='30'?'30 jours':'7 jours';
+function perBar(){return `<div class="modes" id="per">${[['1','Aujourd’hui'],['7','7 jours'],['30','30 jours']].map(x=>`<button data-p="${x[0]}" class="${D.per===x[0]?'on':''}">${x[1]}</button>`).join('')}</div>`}
+const sumBy=(a,f)=>a.reduce((t,x)=>t+f(x),0);
+const recDay=(d,st)=>sumBy(D.summary.filter(r=>r.day===d&&(!st||r.store_id===st)),r=>+r.cash+ +r.wave+ +r.om);
+const depDay=(d,st)=>sumBy(D.exp.filter(e=>e.day===d&&(!st||e.store_id===st)),e=>e.amount);
+const ticketsDay=(d,st)=>sumBy(D.summary.filter(r=>r.day===d&&(!st||r.store_id===st)),r=>r.tickets);
+function fibreInfo(){
+  const m=dayStr(0).slice(0,7),due=m+'-28',days=Math.round((new Date(due+'T00:00:00Z')-new Date(dayStr(0)+'T00:00:00Z'))/864e5);
+  const unpaid=SHOPS.filter(s=>!D.exp.some(e=>e.category===FIBRE&&e.store_id===s&&e.month===m));
+  const n=new Date(m+'-01T00:00:00Z');n.setUTCMonth(n.getUTCMonth()+1);
+  return {due,days,unpaid,next:n.toISOString().slice(0,7)+'-28'};
+}
+function fibreBanner(){
+  const f=fibreInfo();
+  if(!f.unpaid.length)return `<div class="best" style="margin-bottom:12px">${ic('check',22)}<div>Fibre optique : payée ce mois pour tous les magasins. Prochaine échéance le <b>${dmyFull(f.next)}</b> (le 28 de chaque mois).</div></div>`;
+  const when=f.days>0?'dans '+f.days+' jour'+(f.days>1?'s':''):f.days===0?'<b>aujourd’hui</b>':'<b>dépassée de '+(-f.days)+' jour'+(-f.days>1?'s':'')+'</b>';
+  return `<div class="best blink" style="margin-bottom:12px;border-color:var(--rd);background:#fdecea;color:var(--rd)">${ic('triangle-alert',22)}<div><b>Échéance fibre optique : le 28 du mois, ${dmyFull(f.due)}</b> (${when}). Reste à régler : ${f.unpaid.map(x=>esc(SHORT[x])).join(', ')}.</div></div>`;
+}
+function chartSvg(days){
+  const R=days.map(d=>recDay(d)),Dp=days.map(d=>depDay(d)),mx=Math.max(1,...R,...Dp),step=mx>3e6?1e6:500000,top=Math.ceil(mx/step)*step||step;
+  const n=days.length,W=640,H=240,pl=8,pb=34,pt=22,gw=(W-pl*2)/n,bw=gw*.36,ch=H-pb-pt;
+  let o=`<div class="lg"><span><i class="sw" style="background:var(--g2)"></i>Recettes</span><span><i class="sw" style="background:var(--or)"></i>Dépenses</span></div><svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" role="img" aria-label="Recettes et dépenses par jour">`;
+  for(let g=0;g<=4;g++){const y=pt+ch-ch*g/4;o+=`<line x1="${pl}" x2="${W-pl}" y1="${y}" y2="${y}" stroke="#e3e8e5"/>`}
+  days.forEach((d,i)=>{const x=pl+i*gw+gw*.12,hr=R[i]/top*ch,hd=Dp[i]/top*ch;
+    o+=`<rect x="${x}" y="${pt+ch-hr}" width="${bw}" height="${hr}" rx="1.5" fill="var(--g2)"/><rect x="${x+bw+2}" y="${pt+ch-hd}" width="${bw}" height="${hd}" rx="1.5" fill="var(--or)"/>`;
+    if(n<=7){o+=`<text x="${x+bw}" y="${pt+ch-Math.max(hr,hd)-6}" text-anchor="middle" font-size="10" fill="#68756e">${compact(R[i])}</text><text x="${pl+i*gw+gw/2}" y="${H-16}" text-anchor="middle" font-size="10" fill="#68756e">${WD[new Date(d+'T00:00:00Z').getUTCDay()]} ${dmy(d)}</text>`}
+    else if(i%5===0||i===n-1)o+=`<text x="${pl+i*gw+gw/2}" y="${H-16}" text-anchor="middle" font-size="10" fill="#68756e">${dmy(d)}</text>`});
+  return o+'</svg>';
+}
+function netStatus(){
+  const now=Date.now();
+  return SHOPS.map(s=>{const r=D.status.find(x=>x.store_id===s);
+    if(!r)return {s,state:'none'};
+    const age=now-new Date(r.last_seen).getTime();
+    return age<100000?{s,state:'on',pending:r.pending}:{s,state:'off',since:hhmm(r.last_seen),pending:r.pending};
+  });
+}
+function rapportText(){
+  const today=dayStr(0),t=[];
+  t.push('RAPPORT DU SOIR — MINANE SHOP — '+dmyFull(today)+'\n');
+  const tot=recDay(today);t.push('Recettes du jour : '+fmt(tot)+' ('+ticketsDay(today)+' tickets)');
+  SHOPS.forEach(s=>{const r=D.summary.find(x=>x.day===today&&x.store_id===s);t.push('• '+STORES[s]+' : '+fmt(r?+r.cash+ +r.wave+ +r.om:0)+(r?'':' (aucune vente)'))});
+  const pv=D.vers.filter(v=>v.status==='pending');t.push('');t.push(pv.length?'Versements à confirmer : '+pv.map(v=>SHORT[v.store_id]+' '+fmt(v.amount)).join(', '):'Versements à confirmer : aucun');
+  const ec=D.closures.filter(c=>c.counted_cash!=null&&c.counted_cash!==c.cash);
+  t.push(ec.length?'Écarts de caisse :':'Écarts de caisse : aucun');ec.forEach(c=>t.push('• '+SHORT[c.store_id]+' : '+signed(c.counted_cash-c.cash)));
+  const nc=SHOPS.filter(s=>!D.closures.some(c=>c.store_id===s));if(nc.length)t.push('Caisse non clôturée : '+nc.map(s=>SHORT[s]).join(', '));
+  t.push('');const rp=D.alerts.filter(a=>a.qty<=0).map(a=>a.name+' ('+SHORT[a.store_id]+')');t.push(rp.length?'Ruptures : '+rp.join(', '):'Ruptures : aucune');
+  const late=D.credits.filter(c=>c.amount>c.paid&&c.due_date&&c.due_date<today);t.push('Crédits en retard : '+fmt(sumBy(late,c=>c.amount-c.paid))+' ('+late.length+')');
+  return t.join('\n');
+}
 function dirOverview(){
-  const by={};for(const s of SHOPS)by[s]={list:[],clo:null};
-  for(const s of D.sales)if(by[s.store_id])by[s.store_id].list.push(s);
-  for(const c of D.closures)if(by[c.store_id])by[c.store_id].clo=c;
-  const all=sums(D.sales),pend=D.vers.filter(v=>v.status==='pending').length;
-  return `<div class="row" style="margin-bottom:10px"><label style="margin:0">Journée du</label><input id="dday" type="date" value="${D.day}" style="width:auto"><span class="pill ok" style="margin-left:auto">Mise à jour en direct</span></div>
-  <div class="kpi"><div><small>${ic('store')}Ventes de tous les magasins</small><b>${fmt(all.total)}</b></div><div><small>Tickets</small><b>${D.sales.length}</b></div><div><small>Espèces</small><b>${fmt(all.cash)}</b></div><div><small>Wave + OM</small><b>${fmt(all.wave+all.om)}</b></div><div><small>Crédit</small><b>${fmt(all.credit)}</b></div><div><small>${ic('wallet')}Versements à confirmer</small><b>${pend}</b></div></div>
-  <div class="cards" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">${SHOPS.map(s=>{const t=sums(by[s].list),last=by[s].list[0];return `<div class="card" style="margin:0"><div class="row" style="justify-content:space-between"><b>${STORES[s]}</b>${by[s].clo?'<span class="badge b-ok">clôturé</span>':by[s].list.length?'<span class="badge b-wait">en cours</span>':'<span class="badge b-gr">aucune vente</span>'}</div>
-  <div style="font-size:22px;font-weight:800;margin:6px 0">${fmt(t.total)}</div><div class="mu" style="font-size:13px">${by[s].list.length} ticket(s)${last?' · dernière vente '+hhmm(last.sold_at):''}</div>
-  <table style="margin-top:6px;font-size:13px"><tr><td>Espèces</td><td class="n">${fmt(t.cash)}</td></tr><tr><td>Wave</td><td class="n">${fmt(t.wave)}</td></tr><tr><td>Orange Money</td><td class="n">${fmt(t.om)}</td></tr><tr><td>Crédit</td><td class="n">${fmt(t.credit)}</td></tr></table></div>`}).join('')}</div>`;
+  const days=daysOf(+D.per),R=sumBy(days,d=>recDay(d)),Dp=sumBy(days,d=>depDay(d)),Sd=R-Dp,today=dayStr(0),Rt=recDay(today),Dt=depDay(today);
+  const tk=sumBy(days,d=>ticketsDay(d)),gross=sumBy(D.summary.filter(r=>days.includes(r.day)),r=>+r.gross);
+  const open=D.credits.filter(c=>c.amount>c.paid),late=open.filter(c=>c.due_date&&c.due_date<today);
+  const pv=D.vers.filter(v=>v.status==='pending'),net=netStatus(),offl=net.filter(x=>x.state==='off');
+  // vendeurs
+  const vm=new Map();for(const r of D.sellers.filter(r=>days.includes(r.day))){const k=r.seller_id,x=vm.get(k)||{n:r.full_name,st:r.store_id,t:0,c:0};x.t+= +r.total;x.c+=r.tickets;vm.set(k,x)}
+  const V=[...vm.values()].sort((a,b)=>b.t-a.t),vmax=(V[0]&&V[0].t)||1;
+  const vrows=V.slice(0,5).map((x,i)=>`<tr><td><b>${i+1}</b></td><td><b>${esc(x.n)}</b><div class="mu" style="font-size:12px">${esc(STORES[x.st])}</div></td><td style="width:34%"><div style="background:#e6ebe8;border-radius:4px"><div style="height:8px;border-radius:4px;background:var(--g2);width:${x.t/vmax*100}%"></div></div></td><td class="n">${fmt(x.t)}</td><td class="n mu">${x.c}</td></tr>`).join('')||'<tr><td colspan="5" class="mu">Aucune vente sur la période.</td></tr>';
+  const srows=SHOPS.map(s=>{const r=sumBy(days,d=>recDay(d,s)),e=sumBy(days,d=>depDay(d,s)),al=D.alerts.filter(a=>a.store_id===s),r0=al.filter(a=>a.qty<=0),lw=al.length-r0.length;
+    return `<tr><td><b>${esc(STORES[s])}</b></td><td class="n">${sumBy(days,d=>ticketsDay(d,s))}</td><td class="n">${fmt(r)}</td><td class="n">${fmt(e)}</td><td class="n" style="color:${r-e>=0?'var(--g)':'var(--rd)'}"><b>${signed(r-e)}</b></td><td>${al.length?(r0.length?`<span class="badge b-bad blink">${r0.length} rupture${r0.length>1?'s':''}</span> <b style="color:var(--rd);font-size:12.5px">${r0.map(z=>esc(z.name)).join(', ')}</b> `:'')+(lw?`<span class="badge b-wait">${lw} faible${lw>1?'s':''}</span>`:''):'<span class="badge b-ok">RAS</span>'}</td></tr>`}).join('');
+  const dd=(D.per==='1'?daysOf(7):days).slice().reverse();
+  const drows=dd.map(d=>{const r=recDay(d),e=depDay(d);return `<tr><td>${WD[new Date(d+'T00:00:00Z').getUTCDay()]} ${dmy(d)}</td><td class="n">${fmt(r)}</td><td class="n">${fmt(e)}</td><td class="n" style="color:${r-e>=0?'var(--g)':'var(--rd)'}"><b>${signed(r-e)}</b></td></tr>`}).join('');
+  const al8=D.alerts.slice().sort((a,b)=>a.qty-b.qty).slice(0,8).map(a=>`<tr><td>${esc(a.name)}</td><td>${esc(STORES[a.store_id])}</td><td class="n"><span class="badge ${a.qty<=0?'b-bad blink':'b-wait'}">${a.qty}</span></td></tr>`).join('')||'<tr><td colspan="3" class="mu">Aucune alerte.</td></tr>';
+  const rec=D.recent.map(x=>{const v=D.vendors.find(y=>y.id===x.seller_id);const cr=(x.sale_payments||[]).some(p=>p.method==='credit');return `<tr><td>${hhmm(x.sold_at)}</td><td>${esc(STORES[x.store_id])}</td><td>${esc(v?v.full_name:'')}</td><td>${esc(x.customer_name||'—')}</td><td>${cr?'<span class="badge b-wait">Crédit</span>':(x.sale_payments||[]).map(p=>lab[p.method]).join(' + ')}</td><td class="n">${fmt(x.total)}</td></tr>`}).join('')||'<tr><td colspan="6" class="mu">Aucune vente aujourd’hui.</td></tr>';
+  return `${pv.length?`<div class="card" style="border-left:4px solid var(--or)"><h2>${pv.length} élément${pv.length>1?'s':''} à traiter <small class="mu" style="font-weight:400">envoyé par les magasins</small></h2>${pv.slice(0,3).map(v=>`<div class="row" style="justify-content:space-between;padding:6px 0"><b>${esc(STORES[v.store_id])}</b><span>${v.method==='wave'?'Wave':v.method==='om'?'Orange Money':'Espèces'}${v.reference?' · Réf. '+esc(v.reference):''}</span><span class="mu">${dtFr(v.created_at)}</span><b>${fmt(v.amount)}</b></div>`).join('')}<button class="btn big" id="gov" style="margin-top:8px">${ic('check',18)}Voir et traiter</button></div>`:''}
+  <div class="card"><h2>Connexion des magasins <small class="mu" style="font-weight:400">${offl.length?offl.length+' hors ligne':net.every(x=>x.state==='on')?'tous en ligne':net.filter(x=>x.state==='on').length+' en ligne'}</small></h2><div class="row">${net.map(x=>`<span class="badge ${x.state==='on'?'b-ok':x.state==='off'?'b-wait':'b-gr'}" style="padding:6px 12px;border-radius:99px">${esc(SHORT[x.s])} · ${x.state==='on'?'en ligne':x.state==='off'?'hors ligne depuis '+x.since+(x.pending?' · '+x.pending+' en attente':''):'jamais connecté'}</span>`).join('')}</div></div>
+  ${perBar()}${fibreBanner()}
+  <div class="kpi"><div><small>${ic('banknote')}Recettes</small><b>${fmt(R)}</b><small>Aujourd’hui : ${fmt(Rt)}</small></div><div><small>${ic('trending-up')}Dépenses</small><b>${fmt(Dp)}</b><small>Aujourd’hui : ${fmt(Dt)}</small></div><div><small>${ic('wallet')}Solde</small><b style="color:${Sd>=0?'var(--g)':'var(--rd)'}">${signed(Sd)}</b><small>Aujourd’hui : ${signed(Rt-Dt)}</small></div><div><small>${ic('receipt')}Tickets</small><b>${tk}</b><small>Panier moyen ${fmt(tk?gross/tk:0)}</small></div><div><small>${ic('users')}Créances clients</small><b>${fmt(sumBy(open,c=>c.amount-c.paid))}</b><small>${late.length} en retard · ${fmt(sumBy(late,c=>c.amount-c.paid))}</small></div></div>
+  <div class="grid2"><div class="card"><h2>Recettes et dépenses <small class="mu" style="font-weight:400">par jour, en F</small></h2>${chartSvg(daysOf(D.per==='30'?30:7))}</div>
+  <div class="card"><h2>Meilleurs vendeurs <small class="mu" style="font-weight:400">${perLabel()}</small></h2>${V[0]?`<div class="best">${ic('trophy',26)}<div><div class="mu" style="font-size:12px">Meilleur vendeur</div><b>${esc(V[0].n)} · ${esc(STORES[V[0].st])}</b><div>${fmt(V[0].t)} · ${V[0].c} tickets</div></div></div>`:''}<table><tbody>${vrows}</tbody></table></div></div>
+  <div class="card"><h2>Magasins <small class="mu" style="font-weight:400">${perLabel()}</small></h2><div class="tw"><table><thead><tr><th>Magasin</th><th class="n">Tickets</th><th class="n">Recettes</th><th class="n">Dépenses</th><th class="n">Solde</th><th>Stock</th></tr></thead><tbody>${srows}</tbody></table></div></div>
+  <div class="grid2"><div class="card"><h2>Solde journalier</h2><div class="tw" style="max-height:340px;overflow-y:auto"><table><thead><tr><th>Jour</th><th class="n">Recettes</th><th class="n">Dépenses</th><th class="n">Solde</th></tr></thead><tbody>${drows}</tbody></table></div></div>
+  <div class="card"><h2>Stock à surveiller <small class="mu" style="font-weight:400">${D.alerts.length} alertes</small></h2><table><thead><tr><th>Article</th><th>Magasin</th><th class="n">Stock</th></tr></thead><tbody>${al8}</tbody></table></div></div>
+  <div class="card"><h2>Dernières ventes</h2><div class="tw"><table><thead><tr><th>Heure</th><th>Magasin</th><th>Vendeur</th><th>Client</th><th>Paiement</th><th class="n">Montant</th></tr></thead><tbody>${rec}</tbody></table></div></div>
+  <div class="card"><h2>Rapport du soir <small class="mu" style="font-weight:400">résumé prêt à envoyer</small></h2><pre id="rtx" style="white-space:pre-wrap;background:#f4f6f4;border-radius:10px;padding:10px;font:13px/1.45 ui-monospace,monospace">${esc(rapportText())}</pre>
+  <div class="row"><div style="flex:1;min-width:160px"><label>WhatsApp du Directeur</label><input id="rt" type="tel" inputmode="tel" placeholder="77 000 00 00" value="${esc(D.rapp.tel)}"></div><div style="flex:1;min-width:160px"><label>E-mail</label><input id="rmm" type="email" placeholder="nom@exemple.com" value="${esc(D.rapp.mail)}"></div></div>
+  <div class="row" style="margin-top:12px"><button class="btn" id="rwa">${ic('smartphone',16)}Envoyer par WhatsApp</button><button class="btn sec" id="rem">E-mail</button><button class="btn sec" id="rcp">Copier</button></div></div>`;
+}
+function bindOverview(){
+  document.querySelectorAll('#per button').forEach(b=>b.onclick=()=>{D.per=b.dataset.p;draw()});
+  const g=$('#gov');if(g)g.onclick=()=>{S.tab='versements';draw()};
+  const sv=()=>{D.rapp={tel:$('#rt').value,mail:$('#rmm').value};LS.set('rapp',D.rapp)};
+  $('#rwa').onclick=()=>{sv();let d=D.rapp.tel.replace(/\D/g,'');if(d.length<9){toast('Saisissez le numéro WhatsApp (9 chiffres).');return}if(d.length===9)d='221'+d;window.open('https://wa.me/'+d+'?text='+encodeURIComponent(rapportText()),'_blank')};
+  $('#rem').onclick=()=>{sv();if(!/.+@.+/.test(D.rapp.mail)){toast('Saisissez une adresse e-mail valide.');return}location.href='mailto:'+D.rapp.mail+'?subject='+encodeURIComponent('Rapport du soir MINANE SHOP — '+dmyFull(dayStr(0)))+'&body='+encodeURIComponent(rapportText())};
+  $('#rcp').onclick=()=>{sv();try{navigator.clipboard.writeText(rapportText()).then(()=>toast('Rapport copié.'),()=>toast('Sélectionnez le texte puis copiez.'))}catch{toast('Sélectionnez le texte puis copiez.')}};
+  ['rt','rmm'].forEach(i=>$('#'+i).onchange=sv);
+}
+function dirDepenses(){
+  const days=daysOf(+D.per),list=D.exp.filter(e=>days.includes(e.day)),tot=sumBy(list,e=>e.amount);
+  const cats=CATS.map(c=>({n:c,v:sumBy(list.filter(e=>e.category===c),e=>e.amount)})).filter(x=>x.v>0).sort((a,b)=>b.v-a.v),m=cats.length?cats[0].v:1;
+  const rows=list.slice(0,25).map(e=>`<tr><td>${dmy(e.day)}</td><td>${esc(STORES[e.store_id]||e.store_id)}</td><td>${esc(e.category)}</td><td>${e.month?`<span class="badge b-ok">${e.month.slice(5)}/${e.month.slice(0,4)}</span>`:'<span class="mu">—</span>'}</td><td>${esc(e.label)}</td><td class="n">${fmt(e.amount)}</td></tr>`).join('')||'<tr><td colspan="6" class="mu">Aucune dépense sur la période.</td></tr>';
+  return `${perBar()}${fibreBanner()}<div class="grid2"><div class="card"><h2>Nouvelle dépense</h2>
+  <label>Magasin</label><select id="ds">${SHOPS.map(s=>`<option value="${s}">${esc(STORES[s])}</option>`).join('')}</select>
+  <label>Catégorie</label><select id="dc">${CATS.map(c=>`<option>${esc(c)}</option>`).join('')}</select>
+  <div id="dmw" style="display:none"><label>Mois concerné</label><input id="dmo" type="month" value="${dayStr(0).slice(0,7)}"></div>
+  <label>Libellé</label><input id="dl" placeholder="Ex. Transport marchandises"><label>Montant (F)</label><input id="dm" type="number" min="1" inputmode="numeric">
+  <button class="btn big" id="dgo" style="margin-top:12px">${ic('check',20)}Enregistrer la dépense</button><div class="err" id="derr"></div></div>
+  <div class="card"><h2>Par catégorie <small class="mu" style="font-weight:400">${perLabel()} · ${fmt(tot)}</small></h2>${cats.map(x=>`<div style="display:grid;grid-template-columns:150px 1fr 90px;gap:8px;align-items:center;margin:6px 0;font-size:13px"><div>${esc(x.n)}</div><div style="background:#e6ebe8;border-radius:4px"><div style="height:10px;border-radius:4px;background:var(--or);width:${x.v/m*100}%"></div></div><div class="n"><b>${compact(x.v)} F</b></div></div>`).join('')||'<div class="mu">Rien à afficher.</div>'}</div></div>
+  <div class="card"><h2>Dernières dépenses</h2><div class="tw"><table><thead><tr><th>Date</th><th>Magasin</th><th>Catégorie</th><th>Mois</th><th>Libellé</th><th class="n">Montant</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+}
+function bindDepenses(){
+  document.querySelectorAll('#per button').forEach(b=>b.onclick=()=>{D.per=b.dataset.p;draw()});
+  const upd=()=>{$('#dmw').style.display=MONTHLY.includes($('#dc').value)?'block':'none'};$('#dc').onchange=upd;upd();
+  $('#dgo').onclick=async()=>{
+    const amount=Math.round(+$('#dm').value||0),label=$('#dl').value.trim();
+    if(amount<=0||!label){$('#derr').textContent='Indiquez le libellé et le montant.';return}
+    const cat=$('#dc').value,row={store_id:$('#ds').value,day:dayStr(0),category:cat,label,amount,month:MONTHLY.includes(cat)?($('#dmo').value||dayStr(0).slice(0,7)):null};
+    try{await q(sb.from('expenses').insert(row).select('id'));toast('Dépense enregistrée');await loadDirector();draw()}catch(e){$('#derr').textContent='Erreur : '+(e.message||e)}
+  };
 }
 function dirVers(){
   return `<div class="card"><h2>${ic('wallet')}Versements des magasins</h2><table><tr><th>Date</th><th>Magasin</th><th>Mode</th><th>Référence</th><th class="n">Montant</th><th>Statut</th><th></th></tr>
