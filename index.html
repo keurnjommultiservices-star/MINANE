@@ -81,7 +81,7 @@ header.top .pill .ic{margin-right:4px;width:14px;height:14px;vertical-align:-2px
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 'use strict';
-const BUILD='1.7';
+const BUILD='1.9';
 const SB_URL='https://ehnptnwvwshmcaqrupru.supabase.co';
 const SB_KEY='sb_publishable_h3I7whuNEfbnfub_Q0eP6w_e77YMUqn';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
@@ -89,7 +89,7 @@ const STORES={SAN:'MINANE SANDAGA',MIR:'CHRISBELLA SANDAGA',HLM:'HLM 5',TOU:'TOU
 const SHOPS=['SAN','MIR','HLM','TOU','PIK'];
 const $=(s,r=document)=>r.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const ICONS={"arrow-left-right":"<path d=\"M8 3 4 7l4 4\"/><path d=\"M4 7h16\"/><path d=\"m16 21 4-4-4-4\"/><path d=\"M20 17H4\"/>","key-round":"<path d=\"M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z\"/><circle cx=\"16.5\" cy=\"7.5\" r=\".5\" fill=\"currentColor\"/>","shopping-cart": "<circle cx=\"8\" cy=\"21\" r=\"1\"/><circle cx=\"19\" cy=\"21\" r=\"1\"/><path d=\"M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12\"/>", "receipt": "<path d=\"M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z\"/><path d=\"M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8\"/><path d=\"M12 17.5v-11\"/>", "package": "<path d=\"m7.5 4.27 9 5.15\"/><path d=\"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z\"/><path d=\"m3.3 7 8.7 5 8.7-5\"/><path d=\"M12 22V12\"/>", "lock": "<rect width=\"18\" height=\"11\" x=\"3\" y=\"11\" rx=\"2\" ry=\"2\"/><path d=\"M7 11V7a5 5 0 0 1 10 0v4\"/>", "layout-dashboard": "<rect width=\"7\" height=\"9\" x=\"3\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"14\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"9\" x=\"14\" y=\"12\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"3\" y=\"16\" rx=\"1\"/>", "wallet": "<path d=\"M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1\"/><path d=\"M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4\"/>", "clipboard-list": "<rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\" ry=\"1\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"/><path d=\"M12 11h4\"/><path d=\"M12 16h4\"/><path d=\"M8 11h.01\"/><path d=\"M8 16h.01\"/>", "banknote": "<rect width=\"20\" height=\"12\" x=\"2\" y=\"6\" rx=\"2\"/><circle cx=\"12\" cy=\"12\" r=\"2\"/><path d=\"M6 12h.01M18 12h.01\"/>", "smartphone": "<rect width=\"14\" height=\"20\" x=\"5\" y=\"2\" rx=\"2\" ry=\"2\"/><path d=\"M12 18h.01\"/>", "users": "<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/>", "printer": "<path d=\"M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2\"/><path d=\"M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6\"/><rect x=\"6\" y=\"14\" width=\"12\" height=\"8\" rx=\"1\"/>", "log-out": "<path d=\"M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4\"/><polyline points=\"16 17 21 12 16 7\"/><line x1=\"21\" x2=\"9\" y1=\"12\" y2=\"12\"/>", "check": "<path d=\"M20 6 9 17l-5-5\"/>", "upload": "<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"17 8 12 3 7 8\"/><line x1=\"12\" x2=\"12\" y1=\"3\" y2=\"15\"/>", "plus": "<path d=\"M5 12h14\"/><path d=\"M12 5v14\"/>", "minus": "<path d=\"M5 12h14\"/>", "store": "<path d=\"m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7\"/><path d=\"M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8\"/><path d=\"M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4\"/><path d=\"M2 7h20\"/>", "trending-up": "<polyline points=\"22 7 13.5 15.5 8.5 10.5 2 17\"/><polyline points=\"16 7 22 7 22 13\"/>", "triangle-alert": "<path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3\"/><path d=\"M12 9v4\"/><path d=\"M12 17h.01\"/>", "clock": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><polyline points=\"12 6 12 12 16 14\"/>", "download": "<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"7 10 12 15 17 10\"/><line x1=\"12\" x2=\"12\" y1=\"15\" y2=\"3\"/>", "truck": "<path d=\"M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2\"/><path d=\"M15 18H9\"/><path d=\"M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14\"/><circle cx=\"17\" cy=\"18\" r=\"2\"/><circle cx=\"7\" cy=\"18\" r=\"2\"/>", "file-text":"<path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"/><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"/><path d=\"M10 9H8\"/><path d=\"M16 13H8\"/><path d=\"M16 17H8\"/>","undo-2":"<path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11\"/>","file-spreadsheet": "<path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"/><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"/><path d=\"M8 13h2\"/><path d=\"M14 13h2\"/><path d=\"M8 17h2\"/><path d=\"M14 17h2\"/>"};
+const ICONS={"arrow-left-right":"<path d=\"M8 3 4 7l4 4\"/><path d=\"M4 7h16\"/><path d=\"m16 21 4-4-4-4\"/><path d=\"M20 17H4\"/>","key-round":"<path d=\"M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z\"/><circle cx=\"16.5\" cy=\"7.5\" r=\".5\" fill=\"currentColor\"/>","shopping-cart": "<circle cx=\"8\" cy=\"21\" r=\"1\"/><circle cx=\"19\" cy=\"21\" r=\"1\"/><path d=\"M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12\"/>", "receipt": "<path d=\"M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z\"/><path d=\"M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8\"/><path d=\"M12 17.5v-11\"/>", "package": "<path d=\"m7.5 4.27 9 5.15\"/><path d=\"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z\"/><path d=\"m3.3 7 8.7 5 8.7-5\"/><path d=\"M12 22V12\"/>", "lock": "<rect width=\"18\" height=\"11\" x=\"3\" y=\"11\" rx=\"2\" ry=\"2\"/><path d=\"M7 11V7a5 5 0 0 1 10 0v4\"/>", "layout-dashboard": "<rect width=\"7\" height=\"9\" x=\"3\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"14\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"9\" x=\"14\" y=\"12\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"3\" y=\"16\" rx=\"1\"/>", "wallet": "<path d=\"M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1\"/><path d=\"M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4\"/>", "clipboard-list": "<rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\" ry=\"1\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"/><path d=\"M12 11h4\"/><path d=\"M12 16h4\"/><path d=\"M8 11h.01\"/><path d=\"M8 16h.01\"/>", "banknote": "<rect width=\"20\" height=\"12\" x=\"2\" y=\"6\" rx=\"2\"/><circle cx=\"12\" cy=\"12\" r=\"2\"/><path d=\"M6 12h.01M18 12h.01\"/>", "smartphone": "<rect width=\"14\" height=\"20\" x=\"5\" y=\"2\" rx=\"2\" ry=\"2\"/><path d=\"M12 18h.01\"/>", "users": "<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/>", "printer": "<path d=\"M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2\"/><path d=\"M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6\"/><rect x=\"6\" y=\"14\" width=\"12\" height=\"8\" rx=\"1\"/>", "log-out": "<path d=\"M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4\"/><polyline points=\"16 17 21 12 16 7\"/><line x1=\"21\" x2=\"9\" y1=\"12\" y2=\"12\"/>", "check": "<path d=\"M20 6 9 17l-5-5\"/>", "upload": "<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"17 8 12 3 7 8\"/><line x1=\"12\" x2=\"12\" y1=\"3\" y2=\"15\"/>", "plus": "<path d=\"M5 12h14\"/><path d=\"M12 5v14\"/>", "minus": "<path d=\"M5 12h14\"/>", "store": "<path d=\"m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7\"/><path d=\"M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8\"/><path d=\"M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4\"/><path d=\"M2 7h20\"/>", "trending-up": "<polyline points=\"22 7 13.5 15.5 8.5 10.5 2 17\"/><polyline points=\"16 7 22 7 22 13\"/>", "triangle-alert": "<path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3\"/><path d=\"M12 9v4\"/><path d=\"M12 17h.01\"/>", "clock": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><polyline points=\"12 6 12 12 16 14\"/>", "download": "<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"7 10 12 15 17 10\"/><line x1=\"12\" x2=\"12\" y1=\"15\" y2=\"3\"/>", "truck": "<path d=\"M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2\"/><path d=\"M15 18H9\"/><path d=\"M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14\"/><circle cx=\"17\" cy=\"18\" r=\"2\"/><circle cx=\"7\" cy=\"18\" r=\"2\"/>", "file-text":"<path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"/><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"/><path d=\"M10 9H8\"/><path d=\"M16 13H8\"/><path d=\"M16 17H8\"/>","undo-2":"<path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11\"/>","settings":"<path d=\"M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/>","file-spreadsheet": "<path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"/><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"/><path d=\"M8 13h2\"/><path d=\"M14 13h2\"/><path d=\"M8 17h2\"/><path d=\"M14 17h2\"/>"};
 const ICOL={"arrow-left-right":"purple","key-round":"purple","shopping-cart": "green", "receipt": "blue", "package": "orange", "lock": "purple", "layout-dashboard": "blue", "wallet": "teal", "clipboard-list": "blue", "banknote": "green", "smartphone": "blue", "users": "orange", "printer": "blue", "log-out": "red", "upload": "teal", "store": "green", "trending-up": "blue", "triangle-alert": "orange", "clock": "orange", "download": "blue", "truck": "orange", "file-spreadsheet": "green"};
 const ic=(n,sz)=>ICONS[n]?'<svg class="ic" viewBox="0 0 24 24" width="'+(sz||18)+'" height="'+(sz||18)+'" aria-hidden="true"'+(ICOL[n]?' style="color:var(--ic-'+ICOL[n]+')"':'')+'>'+ICONS[n]+'</svg>':'';
 const fmt=n=>Number(n||0).toLocaleString('fr-FR').replace(/[  ]/g,' ')+' F';
@@ -178,10 +178,20 @@ function loginScreen(msg){
   };
   $('#lgo').onclick=go;$('#lp').onkeydown=e=>{if(e.key==='Enter')go()};
 }
+const STORE_ORDER=['SAN','MIR','HLM','TOU','PIK'],EXTRA_COL=['#c0662b','#5b6f1f','#a03a3a','#2d7f9e','#8a6d1a','#6b5b95'];
+async function loadStores(){
+  let rows;try{rows=await q(sb.from('stores').select('id,name,kind,active').order('id'));LS.set('stores',rows)}catch(e){rows=LS.get('stores',null)}
+  if(!rows||!rows.length)return;
+  rows=rows.slice().sort((a,b)=>{const i=STORE_ORDER.indexOf(a.id),j=STORE_ORDER.indexOf(b.id);return (i<0?99:i)-(j<0?99:j)||(a.id<b.id?-1:1)});
+  Object.keys(STORES).forEach(k=>delete STORES[k]);SHOPS.length=0;let x=0;
+  rows.forEach(r=>{STORES[r.id]=r.name;if(r.kind==='store'){if(r.active)SHOPS.push(r.id);if(!SHORT[r.id])SHORT[r.id]=r.name.replace(/\w\S*/g,w=>w[0]+w.slice(1).toLowerCase());if(!SCOL[r.id])SCOL[r.id]=EXTRA_COL[x++%EXTRA_COL.length]}});
+  SHORT.CEN='Central';
+}
 async function start(){
   $('#app').innerHTML='<div class="login"><div class="mu">Chargement…</div></div>';
   const {data:{session}}=await sb.auth.getSession();
   if(!session){loginScreen();return}
+  await loadStores();
   try{me=await cached('profile',async()=>q(sb.from('profiles').select('*').eq('id',session.user.id).single()))}
   catch(e){loginScreen('Profil introuvable. Contactez l’administrateur.');return}
   if(me.id!==session.user.id){me=await q(sb.from('profiles').select('*').eq('id',session.user.id).single());LS.set('profile',me)}
@@ -256,15 +266,19 @@ window.addEventListener('offline',paintNet);
 const mkey=l=>l.article_id+'|'+l.size+'|'+l.color;
 function artStock(id,es){return es.filter(r=>r.article_id===id).reduce((s,r)=>s+r.qty,0)}
 function drawCashier(){
-  const tabs=[['caisse',ic('shopping-cart')+'Caisse'],['journal',ic('receipt')+'Journal'],['stock',ic('package')+'Stock'],['cloture',ic('lock')+'Clôture']];
+  const tabs=[['caisse',ic('shopping-cart')+'Caisse'],['journal',ic('receipt')+'Journal'],['stock',ic('package')+'Stock'],['livraisons',ic('truck')+'Livraisons'],['retours',ic('undo-2')+'Retours'],['cloture',ic('lock')+'Clôture']];
   let b='';
   if(S.tab==='caisse')b=viewCaisse();
+  else if(S.tab==='livraisons')b=dirBons();
+  else if(S.tab==='retours')b=dirRetours();
   else if(S.tab==='journal')b=viewJournal();
   else if(S.tab==='stock')b=viewStock(effStock(),ARTS);
   else b=viewCloture();
   $('#app').innerHTML=shell(tabs,b);
   if(S.tab==='caisse')bindCaisse();
   if(S.tab==='stock')bindStock();
+  if(S.tab==='livraisons')bindBons();
+  if(S.tab==='retours')bindRetours();
   if(S.tab==='cloture')bindCloture();
 }
 function viewCaisse(){
@@ -438,7 +452,7 @@ async function loadDirector(){
       q(sb.from('store_status').select('*')),
       q(sb.from('versements').select('*').order('created_at',{ascending:false}).limit(200)),
       q(sb.from('closures').select('*').gte('day',dayStr(30)).order('created_at',{ascending:false})),
-      q(sb.from('vendors').select('id,full_name,store_id')),
+      q(sb.from('vendors').select('id,full_name,store_id,active').order('full_name')),
       q(sb.from('history_daily').select('*').gte('day',dayStr(730))),
       q(sb.from('central_balance').select('*')),
       q(sb.from('profiles').select('id,full_name,role,store_id,active'))]);
@@ -457,12 +471,13 @@ function subscribeRT(){
 }
 function drawDirector(){
   const central=me.role==='central';
-  const tabs=central?[['stock',ic('store')+'Stock du Central'],['central',ic('file-text')+'Factures aux magasins']]:[['apercu',ic('layout-dashboard')+'Tableau de bord'],['stock',ic('package')+'Stock'],['achats',ic('arrow-left-right')+'Achats / transferts'],['central',ic('store')+'Magasin Central'+(pendingVers()?` <span class="badge b-bad">${pendingVers()}</span>`:'')],['bons',ic('clipboard-list')+'Commandes / BL'],['depenses',ic('wallet')+'Dépenses'],['retours',ic('undo-2')+'Retours'],['import',ic('clipboard-list')+'Inventaire (import)']];
+  const tabs=central?[['stock',ic('store')+'Stock du Central'],['central',ic('file-text')+'Factures aux magasins']]:[['apercu',ic('layout-dashboard')+'Tableau de bord'],['stock',ic('package')+'Stock'],['achats',ic('arrow-left-right')+'Achats / transferts'],['central',ic('store')+'Magasin Central'+(pendingVers()?` <span class="badge b-bad">${pendingVers()}</span>`:'')],['bons',ic('clipboard-list')+'Commandes / BL'],['depenses',ic('wallet')+'Dépenses'],['retours',ic('undo-2')+'Retours'],['import',ic('clipboard-list')+'Inventaire (import)'],['param',ic('settings')+'Paramètres']];
   let b='';
   if(S.tab==='apercu')b=dirOverview();
   else if(S.tab==='central')b=dirCentral();
   else if(S.tab==='bons')b=dirBons();
   else if(S.tab==='retours')b=dirRetours();
+  else if(S.tab==='param')b=dirParam();
   else if(S.tab==='depenses')b=dirDepenses();
   else if(S.tab==='achats')b=dirAchats();
   else if(S.tab==='stock')b=dirStock();
@@ -472,6 +487,7 @@ function drawDirector(){
   if(S.tab==='central')bindCentral();
   if(S.tab==='bons')bindBons();
   if(S.tab==='retours')bindRetours();
+  if(S.tab==='param')bindParam();
   if(S.tab==='depenses')bindDepenses();
   if(S.tab==='achats')bindAchats();
   if(S.tab==='stock')bindDirStock();
@@ -825,7 +841,7 @@ const bcTotal=o=>o.purchase_order_items.reduce((t,x)=>t+x.qty*x.unit_cost,0);
 const bcLeft=(o,x)=>x.qty-o.deliveries.reduce((t,d)=>t+d.delivery_items.filter(y=>vkey(y)===vkey(x)).reduce((u,y)=>u+y.qty,0),0);
 const bcState=o=>o.cancelled?['b-bad','Annulé']:bcRecv(o)>=bcQty(o)?['b-ok','Livré']:bcRecv(o)>0?['b-wait','Partiel']:['b-gr','En attente'];
 const vlabel=x=>[x.size&&'P'+x.size,x.color].filter(Boolean).join(' ');
-const anameD=id=>(D.arts.find(a=>a.id===id)||{name:id}).name;
+const anameD=id=>((me&&me.role==='cashier'?ARTS:D.arts).find(a=>a.id===id)||{name:id}).name;
 function openDoc(html,title,w){
   w=w||window.open('','_blank');if(!w){toast('Autorisez les fenêtres pour imprimer.');return}
   w.document.write(`<!doctype html><meta charset="utf-8"><title>${esc(title)}</title><style>body{font:14px Arial,sans-serif;margin:16mm;color:#111}table{border-collapse:collapse;width:100%;margin-top:16px}th,td{border:1px solid #bbb;padding:7px 9px;text-align:left}th{background:#f1f1f1}.r{text-align:right}.h{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}.box{border:1px solid #bbb;padding:10px 14px}.two{display:flex;gap:16px;margin-top:16px}.two .box{flex:1}.sig{display:flex;justify-content:space-between;margin-top:60px}.ft{margin-top:30px;color:#777;font-size:11px}</style>${html}<script>onload=()=>setTimeout(()=>print(),400)<\/script>`);w.document.close();
@@ -845,27 +861,29 @@ function docHtml(o,bl){
   return head+body+(o.note?`<p><b>Note :</b> ${esc(o.note)}</p>`:'')+foot+`<div class="ft">Document édité le ${dtFr(new Date().toISOString())} · MINANE SHOP</div>`;
 }
 function dirBons(){
+  const cash=me.role==='cashier';
   const so=SHOPS.map(k=>`<option value="${k}">${esc(STORES[k])}</option>`).join(''),ao=D.arts.map(a=>`<option value="${esc(a.id)}">${esc(a.name)}</option>`).join('');
   const sups=[...new Set(BONS.map(o=>o.supplier))].map(x=>`<option value="${esc(x)}">`).join('');
   const rc=BC.rcv&&BONS.find(o=>o.id===BC.rcv);
   const rcv=rc?`<div class="card" style="border-color:var(--g2)"><h2>${ic('truck')}Réception du ${esc(rc.po_no)} <small class="mu" style="font-weight:400">${esc(rc.supplier)} → ${esc(STORES[rc.store_id])}</small></h2><div class="tw"><table><thead><tr><th>Article</th><th class="n">Commandé</th><th class="n">Reste</th><th class="n">Reçu aujourd’hui</th></tr></thead><tbody>${rc.purchase_order_items.map(x=>{const l=bcLeft(rc,x);return `<tr><td>${esc(anameD(x.article_id))} ${esc(vlabel(x))}</td><td class="n">${x.qty}</td><td class="n">${l}</td><td class="n"><input type="number" min="0" max="${l}" value="${l}" data-rq="${x.id}" style="width:80px;text-align:right" ${l?'':'disabled'}></td></tr>`}).join('')}</tbody></table></div>
   <div class="row" style="margin-top:12px"><button class="btn" id="rvp">${ic('printer',18)}Enregistrer et imprimer le BL</button><button class="btn sec" id="rvv">Enregistrer</button><button class="btn sec" id="rvc">Annuler</button></div><div class="err" id="rverr"></div><p class="mu" style="font-size:12.5px">La réception met le stock du magasin à jour et enregistre l’achat dans les dépenses.</p></div>`:'';
   const lines=BC.lines.length?`<div class="tw"><table><thead><tr><th>Article</th><th class="n">Qté</th><th class="n">Prix</th><th class="n">Montant</th><th></th></tr></thead><tbody>${BC.lines.map((l,i)=>`<tr><td>${esc(anameD(l.article_id))} ${esc(vlabel(l))}</td><td class="n">${l.qty}</td><td class="n">${fmt(l.unit_cost)}</td><td class="n">${fmt(l.qty*l.unit_cost)}</td><td><button class="btn sm sec" data-bx="${i}">×</button></td></tr>`).join('')}</tbody></table></div>`:'';
-  const rows=BONS.map(o=>{const st=bcState(o),open=!o.cancelled&&bcRecv(o)<bcQty(o);return `<tr><td><b>${esc(o.po_no)}</b></td><td>${dtFr(o.created_at)}</td><td>${esc(SHORT[o.store_id])}</td><td>${esc(o.supplier)}</td><td class="n">${bcRecv(o)} / ${bcQty(o)}</td><td class="n">${fmt(bcTotal(o))}</td><td><span class="badge ${st[0]}">${st[1]}</span></td><td style="white-space:nowrap"><button class="btn sm sec" data-pbc="${o.id}">${ic('printer',15)}BC</button> ${open?`<button class="btn sm" data-rc="${o.id}">Réceptionner</button> <button class="btn sm sec" data-cx="${o.id}">Annuler</button>`:''}</td></tr>`}).join('')||'<tr><td colspan="8" class="mu">Aucun bon de commande.</td></tr>';
+  const rows=BONS.map(o=>{const st=bcState(o),open=!o.cancelled&&bcRecv(o)<bcQty(o);return `<tr><td><b>${esc(o.po_no)}</b></td><td>${dtFr(o.created_at)}</td><td>${esc(SHORT[o.store_id])}</td><td>${esc(o.supplier)}</td><td class="n">${bcRecv(o)} / ${bcQty(o)}</td><td class="n">${fmt(bcTotal(o))}</td><td><span class="badge ${st[0]}">${st[1]}</span></td><td style="white-space:nowrap"><button class="btn sm sec" data-pbc="${o.id}">${ic('printer',15)}BC</button> ${open?`<button class="btn sm" data-rc="${o.id}">Réceptionner</button>${cash?'':` <button class="btn sm sec" data-cx="${o.id}">Annuler</button>`}`:''}</td></tr>`}).join('')||'<tr><td colspan="8" class="mu">Aucun bon de commande.</td></tr>';
   const bls=BONS.flatMap(o=>o.deliveries.map(d=>({o,d}))).sort((a,b)=>a.d.created_at<b.d.created_at?1:-1).map(({o,d})=>`<tr><td><b>${esc(d.bl_no)}</b></td><td>${dtFr(d.created_at)}</td><td>${esc(o.po_no)}</td><td>${esc(SHORT[o.store_id])}</td><td>${esc(o.supplier)}</td><td class="n">${d.delivery_items.reduce((t,x)=>t+x.qty,0)}</td><td><button class="btn sm sec" data-pbl="${d.id}">${ic('printer',15)}BL</button></td></tr>`).join('')||'<tr><td colspan="7" class="mu">Aucune livraison enregistrée.</td></tr>';
-  return `${rcv}<div class="card"><h2>${ic('clipboard-list')}Nouveau bon de commande</h2>
+  const form=cash?'':`<div class="card"><h2>${ic('clipboard-list')}Nouveau bon de commande</h2>
   <div class="row"><div style="flex:1;min-width:150px"><label>Magasin à livrer</label><select id="bs">${so.replace(`value="${BC.f.store}"`,`value="${BC.f.store}" selected`)}</select></div><div style="flex:1;min-width:150px"><label>Fournisseur</label><input id="bf" list="bfl" value="${esc(BC.f.sup)}" placeholder="Ex. Ets Diallo Cuir"><datalist id="bfl">${sups}</datalist></div><div style="flex:1;min-width:130px"><label>Téléphone</label><input id="bp" inputmode="tel" value="${esc(BC.f.phone)}"></div><div style="flex:1;min-width:130px"><label>Livraison souhaitée</label><input id="bd" type="date" value="${esc(BC.f.due)}"></div></div>
   <div style="border-top:1px solid #e3e8e5;margin-top:14px;padding-top:6px"><b>Articles commandés</b></div>
   <div class="row"><div style="flex:2;min-width:180px"><label>Article</label><select id="ba">${ao}</select></div><div style="flex:1;min-width:90px" id="bzw"><label>Pointure</label><input id="bz" inputmode="numeric"></div><div style="flex:1;min-width:110px" id="bcw"><label>Couleur</label><input id="bk"></div><div style="flex:1;min-width:80px"><label>Quantité</label><input id="bq" type="number" min="1" value="10"></div><div style="flex:1;min-width:110px"><label>Prix d’achat (F)</label><input id="bc" type="number" min="0"></div></div>
   <button class="btn sec" id="bad" style="margin-top:10px">${ic('plus')}Ajouter la ligne</button><div style="margin-top:10px">${lines}</div>
   <label>Note (facultatif)</label><input id="bn" value="${esc(BC.f.note)}" placeholder="Ex. livraison en matinée">
-  <button class="btn big" id="bgo" style="margin-top:12px">${ic('check',20)}Créer et imprimer le bon de commande</button><div class="err" id="berr"></div></div>
-  <div class="card"><h2>Bons de commande <small class="mu" style="font-weight:400">${BONS.length}</small></h2><div class="tw"><table><thead><tr><th>N°</th><th>Date</th><th>Magasin</th><th>Fournisseur</th><th class="n">Reçu / commandé</th><th class="n">Total</th><th>État</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>
+  <button class="btn big" id="bgo" style="margin-top:12px">${ic('check',20)}Créer et imprimer le bon de commande</button><div class="err" id="berr"></div></div>`;
+  return `${rcv}${form}<div class="card"><h2>${cash?'Livraisons attendues':'Bons de commande'} <small class="mu" style="font-weight:400">${BONS.length}</small></h2><div class="tw"><table><thead><tr><th>N°</th><th>Date</th><th>Magasin</th><th>Fournisseur</th><th class="n">Reçu / commandé</th><th class="n">Total</th><th>État</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>
   <div class="card"><h2>Bons de livraison (BL) <small class="mu" style="font-weight:400">historique des réceptions</small></h2><div class="tw"><table><thead><tr><th>N°</th><th>Date et heure</th><th>Bon de commande</th><th>Magasin</th><th>Fournisseur</th><th class="n">Pièces</th><th></th></tr></thead><tbody>${bls}</tbody></table></div></div>`;
 }
 function bindBons(){
-  if(!BONS_LOADED)loadBons().then(()=>{if(S.tab==='bons')draw()});
+  if(!BONS_LOADED)loadBons().then(()=>{if(S.tab==='bons'||S.tab==='livraisons')draw()});
   const art=id=>D.arts.find(a=>a.id===id);
+  if($('#ba')){
   const au=()=>{const a=art($('#ba').value)||{};$('#bzw').style.display=a.has_sizes?'':'none';$('#bcw').style.display=a.has_colors?'':'none';$('#bc').value=a.cost||''};
   $('#ba').onchange=au;au();
   [['bs','store'],['bf','sup'],['bp','phone'],['bd','due'],['bn','note']].forEach(([i,k])=>{$('#'+i).oninput=$('#'+i).onchange=()=>{BC.f[k]=$('#'+i).value}});
@@ -886,6 +904,7 @@ function bindBons(){
       BC.lines=[];BC.f={store:BC.f.store,sup:'',phone:'',due:'',note:''};await loadBons();toast('Bon de commande '+no+' créé');draw();const o=BONS.find(x=>x.po_no===no);if(o)openDoc(docHtml(o),no,pw);else if(pw)pw.close();
     }catch(e){if(pw)pw.close();$('#berr').textContent='Erreur : '+(e.message||e);$('#bgo').disabled=false}
   };
+  }
   document.querySelectorAll('[data-pbc]').forEach(b=>b.onclick=()=>{const o=BONS.find(x=>x.id===b.dataset.pbc);openDoc(docHtml(o),o.po_no)});
   document.querySelectorAll('[data-pbl]').forEach(b=>b.onclick=()=>{for(const o of BONS){const d=o.deliveries.find(x=>x.id===b.dataset.pbl);if(d){openDoc(docHtml(o,d),d.bl_no);break}}});
   document.querySelectorAll('[data-rc]').forEach(b=>b.onclick=()=>{BC.rcv=b.dataset.rc;draw();window.scrollTo(0,0)});
@@ -896,7 +915,7 @@ function bindBons(){
       const items=[];document.querySelectorAll('[data-rq]').forEach(i=>{const x=rc.purchase_order_items.find(y=>y.id===i.dataset.rq),n=Math.min(Math.max(0,Math.round(+i.value)||0),bcLeft(rc,x));if(n>0)items.push({article_id:x.article_id,size:x.size,color:x.color,qty:n})});
       if(!items.length){$('#rverr').textContent='Saisissez au moins une quantité reçue.';return}
       const pw=pr?window.open('','_blank'):null;
-      try{const no=await q(sb.rpc('record_delivery',{p_order:rc.id,p_items:items}));BC.rcv=null;D.stock={};await Promise.all([loadBons(),loadDirector()]);toast('Livraison '+no+' enregistrée, stock mis à jour');draw();if(pr){const o=BONS.find(x=>x.id===rc.id),d=o.deliveries.find(x=>x.bl_no===no);if(d)openDoc(docHtml(o,d),no,pw);else if(pw)pw.close()}}
+      try{const no=await q(sb.rpc('record_delivery',{p_order:rc.id,p_items:items}));BC.rcv=null;D.stock={};await Promise.all([loadBons(),me.role==='cashier'?loadCashier():loadDirector()]);toast('Livraison '+no+' enregistrée, stock mis à jour');draw();if(pr){const o=BONS.find(x=>x.id===rc.id),d=o.deliveries.find(x=>x.bl_no===no);if(d)openDoc(docHtml(o,d),no,pw);else if(pw)pw.close()}}
       catch(e){if(pw)pw.close();$('#rverr').textContent='Erreur : '+(e.message||e)}
     };
     $('#rvp').onclick=()=>save(true);$('#rvv').onclick=()=>save(false);$('#rvc').onclick=()=>{BC.rcv=null;draw()};
@@ -937,9 +956,56 @@ function bindRetours(){
     const s=RSALES.find(x=>x.id===$('#rs').value),x=items[+$('#ra').value],qty=Math.round(+$('#rq').value||0);
     if(!s||!x){$('#rerr').textContent='Choisissez un ticket et un article.';return}
     const max=x.qty-retDone(s.id,x);if(!(qty>0)||qty>max){$('#rerr').textContent='Quantité invalide (maximum '+max+').';return}
-    try{await q(sb.from('returns').insert({store_id:s.store_id,sale_id:s.id,article_id:x.article_id,size:x.size,color:x.color,qty,amount:qty*x.unit_price,reason:$('#rm').value,kind:$('#rk').value}).select('id'));toast('Retour enregistré, stock mis à jour');D.stock={};await loadRetours();draw()}
+    try{await q(sb.from('returns').insert({store_id:s.store_id,sale_id:s.id,article_id:x.article_id,size:x.size,color:x.color,qty,amount:qty*x.unit_price,reason:$('#rm').value,kind:$('#rk').value}).select('id'));toast('Retour enregistré, stock mis à jour');D.stock={};await Promise.all([loadRetours(),me.role==='cashier'?loadCashier():0]);draw()}
     catch(e){$('#rerr').textContent='Erreur : '+(e.message||e)}
   };
+}
+
+/* ---------- PARAMÈTRES : magasins, comptes, vendeurs ---------- */
+let PF={store:'',vstore:''};
+async function adminCall(body){
+  const r=await sb.functions.invoke('admin-users',{body});
+  if(r.error){let m=r.error.message;try{const j=await r.error.context.json();if(j&&j.error)m=j.error}catch(e){}throw new Error(m)}
+  if(r.data&&r.data.error)throw new Error(r.data.error);
+  return r.data;
+}
+function dirParam(){
+  const allStores=Object.keys(STORES).filter(k=>k!=='CEN'),shopOpts=SHOPS.map(k=>`<option value="${k}">${esc(STORES[k])}</option>`).join('');
+  const accounts=D.profiles.filter(p=>['cashier','central'].includes(p.role)).sort((a,b)=>(a.store_id||'')<(b.store_id||'')?-1:1);
+  const vend=D.vendors.slice().sort((a,b)=>(a.store_id+a.full_name)<(b.store_id+b.full_name)?-1:1);
+  return `<div class="card"><h2>${ic('store')}Magasins <small class="mu" style="font-weight:400">${SHOPS.length} actif(s)</small></h2><div class="tw"><table><thead><tr><th>Code</th><th>Nom</th><th>Caissier</th><th></th></tr></thead><tbody>${allStores.map(k=>{const act=SHOPS.includes(k);return `<tr><td>${act?dot(k):''}<b>${esc(k)}</b></td><td><input value="${esc(STORES[k])}" data-sn="${k}" style="min-width:160px"></td><td>${esc(act?cashierOf(k):'')}</td><td class="n"><span class="badge ${act?'b-ok':'b-gr'}">${act?'actif':'désactivé'}</span> <button class="btn sm sec" data-sa="${k}|${act?0:1}">${act?'Désactiver':'Réactiver'}</button></td></tr>`}).join('')}</tbody></table></div>
+  <div class="row" style="margin-top:12px"><div style="flex:1;min-width:90px"><label>Code (2 à 4 lettres)</label><input id="nsc" maxlength="4" placeholder="Ex. KAO" style="text-transform:uppercase"></div><div style="flex:3;min-width:180px"><label>Nom du nouveau magasin</label><input id="nsn" placeholder="Ex. MINANE KAOLACK"></div></div>
+  <button class="btn" id="nsg" style="margin-top:10px">${ic('plus')}Ajouter le magasin</button><div class="err" id="nserr"></div>
+  <p class="mu" style="font-size:12.5px;margin:8px 0 0">Un magasin désactivé disparaît des écrans mais son historique reste. Après l’ajout, créez son caissier ci-dessous et chargez son stock (onglet Inventaire).</p></div>
+  <div class="card"><h2>${ic('users')}Caissiers et comptes</h2><div class="tw"><table><thead><tr><th>Nom</th><th>Rôle</th><th>Magasin</th><th>État</th><th></th></tr></thead><tbody>${accounts.map(a=>`<tr><td><b>${esc(a.full_name)}</b></td><td>${a.role==='central'?'Magasin Central':'Caissier'}</td><td>${esc(STORES[a.store_id]||'')}</td><td><span class="badge ${a.active?'b-ok':'b-gr'}">${a.active?'actif':'désactivé'}</span></td><td class="n" style="white-space:nowrap"><button class="btn sm sec" data-pw="${a.id}">Nouveau mot de passe</button> <button class="btn sm sec" data-ac="${a.id}|${a.active?0:1}">${a.active?'Désactiver':'Réactiver'}</button></td></tr>`).join('')||'<tr><td colspan="5" class="mu">Aucun compte.</td></tr>'}</tbody></table></div>
+  <div class="row" style="margin-top:12px"><div style="flex:2;min-width:160px"><label>Nom complet</label><input id="uname" placeholder="Ex. Awa Ndiaye"></div><div style="flex:2;min-width:160px"><label>Identifiant</label><input id="uid" autocapitalize="none" placeholder="Ex. hlm.caisse"></div><div style="flex:2;min-width:160px"><label>Mot de passe (8 caractères au moins)</label><input id="upw" type="text" autocomplete="off"></div><div style="flex:2;min-width:160px"><label>Magasin</label><select id="ust">${shopOpts}<option value="CEN">Magasin Central (compte Central)</option></select></div></div>
+  <button class="btn" id="ugo" style="margin-top:10px">${ic('plus')}Créer le compte</button><div class="err" id="uerr"></div>
+  <p class="mu" style="font-size:12.5px;margin:8px 0 0">Un seul caissier actif par magasin. Pour changer de caissier : désactivez l’ancien, puis créez le nouveau. L’identifiant de connexion sera <b>identifiant@minane-gestion.app</b>. Communiquez le mot de passe de vive voix.</p></div>
+  <div class="card"><h2>${ic('users')}Vendeurs <small class="mu" style="font-weight:400">choisis à la caisse lors de chaque vente</small></h2><div class="tw"><table><thead><tr><th>Vendeur</th><th>Magasin</th><th></th></tr></thead><tbody>${vend.map(v=>`<tr><td><b>${esc(v.full_name)}</b></td><td>${esc(STORES[v.store_id]||v.store_id)}</td><td class="n"><span class="badge ${v.active?'b-ok':'b-gr'}">${v.active?'actif':'retiré'}</span> <button class="btn sm sec" data-va="${v.id}|${v.active?0:1}">${v.active?'Retirer':'Réactiver'}</button></td></tr>`).join('')||'<tr><td colspan="3" class="mu">Aucun vendeur.</td></tr>'}</tbody></table></div>
+  <div class="row" style="margin-top:12px"><div style="flex:2;min-width:160px"><label>Nom du vendeur</label><input id="vn"></div><div style="flex:2;min-width:160px"><label>Magasin</label><select id="vs">${shopOpts}</select></div></div>
+  <button class="btn" id="vg" style="margin-top:10px">${ic('plus')}Ajouter le vendeur</button><div class="err" id="verr"></div></div>`;
+}
+function bindParam(){
+  const refresh=async()=>{await loadStores();await loadDirector();draw()};
+  document.querySelectorAll('[data-sn]').forEach(i=>i.onchange=async()=>{const n=i.value.trim();if(!n){i.value=STORES[i.dataset.sn];return}try{await q(sb.from('stores').update({name:n}).eq('id',i.dataset.sn).select('id'));toast('Nom enregistré');await refresh()}catch(e){toast('Erreur : '+e.message)}});
+  document.querySelectorAll('[data-sa]').forEach(b=>b.onclick=async()=>{const [id,a]=b.dataset.sa.split('|');if(a==='0'&&!confirm('Désactiver ce magasin ? Son historique est conservé.'))return;try{await q(sb.from('stores').update({active:a==='1'}).eq('id',id).select('id'));await refresh()}catch(e){toast('Erreur : '+e.message)}});
+  $('#nsg').onclick=async()=>{
+    const id=$('#nsc').value.trim().toUpperCase(),name=$('#nsn').value.trim();
+    if(!/^[A-Z]{2,4}$/.test(id)){$('#nserr').textContent='Code : 2 à 4 lettres.';return}
+    if(!name){$('#nserr').textContent='Indiquez le nom.';return}
+    if(STORES[id]){$('#nserr').textContent='Ce code existe déjà.';return}
+    try{await q(sb.from('stores').insert({id,name,kind:'store',active:true}).select('id'));toast('Magasin ajouté : '+name);await refresh()}catch(e){$('#nserr').textContent='Erreur : '+(e.message||e)}
+  };
+  $('#ugo').onclick=async()=>{
+    const full_name=$('#uname').value.trim(),identifiant=$('#uid').value.trim(),password=$('#upw').value,st=$('#ust').value;
+    $('#ugo').disabled=true;
+    try{const r=await adminCall({action:'create_user',full_name,identifiant,password,role:st==='CEN'?'central':'cashier',store_id:st});toast('Compte créé : '+r.email);await refresh()}
+    catch(e){$('#uerr').textContent=e.message;$('#ugo').disabled=false}
+  };
+  document.querySelectorAll('[data-pw]').forEach(b=>b.onclick=async()=>{const pw=prompt('Nouveau mot de passe (8 caractères au moins) :');if(!pw)return;try{await adminCall({action:'set_password',user_id:b.dataset.pw,password:pw});toast('Mot de passe changé')}catch(e){toast('Erreur : '+e.message)}});
+  document.querySelectorAll('[data-ac]').forEach(b=>b.onclick=async()=>{const [id,a]=b.dataset.ac.split('|');if(a==='0'&&!confirm('Désactiver ce compte ? La personne ne pourra plus se connecter.'))return;try{await adminCall({action:'set_active',user_id:id,active:a==='1'});await refresh()}catch(e){toast('Erreur : '+e.message)}});
+  document.querySelectorAll('[data-va]').forEach(b=>b.onclick=async()=>{const [id,a]=b.dataset.va.split('|');try{await q(sb.from('vendors').update({active:a==='1'}).eq('id',id).select('id'));await refresh()}catch(e){toast('Erreur : '+e.message)}});
+  $('#vg').onclick=async()=>{const n=$('#vn').value.trim();if(!n){$('#verr').textContent='Indiquez le nom.';return}try{await q(sb.from('vendors').insert({store_id:$('#vs').value,full_name:n,active:true}).select('id'));toast('Vendeur ajouté');await refresh()}catch(e){$('#verr').textContent='Erreur : '+(e.message||e)}};
 }
 function dirStock(){
   const st=me.role==='central'?'CEN':D.store;
