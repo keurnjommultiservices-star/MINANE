@@ -80,7 +80,7 @@ header.top .pill .ic{margin-right:4px;width:14px;height:14px;vertical-align:-2px
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 'use strict';
-const BUILD='1.4';
+const BUILD='1.5';
 const SB_URL='https://ehnptnwvwshmcaqrupru.supabase.co';
 const SB_KEY='sb_publishable_h3I7whuNEfbnfub_Q0eP6w_e77YMUqn';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
@@ -411,6 +411,8 @@ function bindCloture(){
 const CATS=['Loyer','Salaires','Transport','Repas équipe','Électricité (SENELEC)','Eau (SONES)','Téléphone (fibre optique)','Fournitures','Entretien','Achat marchandises'];
 const FIBRE='Téléphone (fibre optique)';
 const MONTHLY=['Loyer','Salaires','Électricité (SENELEC)','Eau (SONES)',FIBRE];
+const SCOL={SAN:'#1e7a34',MIR:'#2b64c4',HLM:'#b83280',TOU:'#7a4bc2',PIK:'#0f8a8a'};
+const dot=s=>`<i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${SCOL[s]||'#999'};margin-right:7px"></i>`;
 const SHORT={SAN:'Sandaga',MIR:'Chrisbella',HLM:'HLM 5',TOU:'Touba 28',PIK:'Pikine',CEN:'Central'};
 const dayStr=i=>{const d=new Date();d.setUTCDate(d.getUTCDate()-i);return d.toISOString().slice(0,10)};
 const daysOf=n=>Array.from({length:n},(_,i)=>dayStr(n-1-i));
@@ -419,14 +421,14 @@ const dmyFull=d=>d.split('-').reverse().join('/');
 const signed=n=>(n>=0?'+':'−')+fmt(Math.abs(n));
 const compact=n=>Math.round(n).toLocaleString('fr-FR').replace(/[  ]/g,' ');
 const WD=['dim','lun','mar','mer','jeu','ven','sam'];
-let D={per:'7',summary:[],sellers:[],alerts:[],exp:[],credits:[],recent:[],status:[],vers:[],closures:[],vendors:[],stock:{},arts:[],store:'SAN',imp:null,rapp:LS.get('rapp',{tel:'',mail:''})};
+let D={per:'7',caPer:'week',closuresAll:[],hist:[],cbal:[],profiles:[],summary:[],sellers:[],alerts:[],exp:[],credits:[],recent:[],status:[],vers:[],closures:[],vendors:[],stock:{},arts:[],store:'SAN',imp:null,rapp:LS.get('rapp',{tel:'',mail:''})};
 let rt=null,rtT=null;
 async function loadDirector(){
   try{
     D.arts=await cached('arts_d',()=>qAll(()=>sb.from('articles').select('*').order('name')));
     if(me.role==='central'){D.stock.CEN=await cached('stk_CEN',()=>qAll(()=>sb.from('stock').select('article_id,size,color,qty').eq('store_id','CEN').order('article_id')));return}
-    const [summary,sellers,alerts,exp,credits,recent,status,vers,closures,vendors]=await Promise.all([
-      q(sb.from('daily_summary').select('*').gte('day',dayStr(29))),
+    const [summary,sellers,alerts,exp,credits,recent,status,vers,closures,vendors,hist,cbal,profiles]=await Promise.all([
+      q(sb.from('daily_summary').select('*').gte('day',dayStr(729))),
       q(sb.from('daily_sellers').select('*').gte('day',dayStr(29))),
       q(sb.from('stock_alerts').select('*')),
       q(sb.from('expenses').select('*').gte('day',dayStr(62)).order('day',{ascending:false})),
@@ -434,9 +436,12 @@ async function loadDirector(){
       q(sb.from('sales').select('id,store_id,ticket_no,total,sold_at,customer_name,seller_id,sale_payments(method,amount)').gte('sold_at',dayStr(0)+'T00:00:00Z').order('sold_at',{ascending:false}).limit(7)),
       q(sb.from('store_status').select('*')),
       q(sb.from('versements').select('*').order('created_at',{ascending:false}).limit(200)),
-      q(sb.from('closures').select('*').eq('day',dayStr(0))),
-      q(sb.from('vendors').select('id,full_name,store_id'))]);
-    Object.assign(D,{summary,sellers,alerts,exp,credits,recent,status,vers,closures,vendors});
+      q(sb.from('closures').select('*').gte('day',dayStr(30)).order('created_at',{ascending:false})),
+      q(sb.from('vendors').select('id,full_name,store_id')),
+      q(sb.from('history_daily').select('*').gte('day',dayStr(730))),
+      q(sb.from('central_balance').select('*')),
+      q(sb.from('profiles').select('id,full_name,role,store_id,active'))]);
+    Object.assign(D,{summary,sellers,alerts,exp,credits,recent,status,vers,closuresAll:closures,closures:closures.filter(c=>c.day===dayStr(0)),vendors,hist,cbal,profiles});
   }catch(e){toast('Connexion impossible : '+(e.message||e))}
 }
 async function loadDirStock(st){
@@ -507,9 +512,9 @@ function netStatus(){
 }
 function rapportText(){
   const today=dayStr(0),t=[];
-  t.push('RAPPORT DU SOIR — MINANE SHOP — '+dmyFull(today)+'\n');
-  const tot=recDay(today);t.push('Recettes du jour : '+fmt(tot)+' ('+ticketsDay(today)+' tickets)');
-  SHOPS.forEach(s=>{const r=D.summary.find(x=>x.day===today&&x.store_id===s);t.push('• '+STORES[s]+' : '+fmt(r?+r.cash+ +r.wave+ +r.om:0)+(r?'':' (aucune vente)'))});
+  t.push('*MINANE SHOP — Rapport du soir*\n'+dmyFull(today)+'\n');
+  SHOPS.forEach(s=>{const r=D.summary.find(x=>x.day===today&&x.store_id===s);t.push('• '+SHORT[s]+' : '+fmt(r?+r.cash+ +r.wave+ +r.om:0)+' ('+(r?r.tickets:0)+' tickets)')});
+  const R=recDay(today),De=depDay(today);t.push('');t.push('Total ventes : '+fmt(R)+' ('+ticketsDay(today)+' tickets)');t.push('Dépenses : '+fmt(De));t.push('Solde : '+signed(R-De));
   const pv=D.vers.filter(v=>v.status==='pending');t.push('');t.push(pv.length?'Versements à confirmer : '+pv.map(v=>SHORT[v.store_id]+' '+fmt(v.amount)).join(', '):'Versements à confirmer : aucun');
   const ec=D.closures.filter(c=>c.counted_cash!=null&&c.counted_cash!==c.cash);
   t.push(ec.length?'Écarts de caisse :':'Écarts de caisse : aucun');ec.forEach(c=>t.push('• '+SHORT[c.store_id]+' : '+signed(c.counted_cash-c.cash)));
@@ -517,6 +522,63 @@ function rapportText(){
   t.push('');const rp=D.alerts.filter(a=>a.qty<=0).map(a=>a.name+' ('+SHORT[a.store_id]+')');t.push(rp.length?'Ruptures : '+rp.join(', '):'Ruptures : aucune');
   const late=D.credits.filter(c=>c.amount>c.paid&&c.due_date&&c.due_date<today);t.push('Crédits en retard : '+fmt(sumBy(late,c=>c.amount-c.paid))+' ('+late.length+')');
   return t.join('\n');
+}
+/* --- Chiffre d'affaires comparé à l'année précédente --- */
+const CAP={week:['Semaine',7],quarter:['Trimestre',90],half:['Semestre',182],year:['Année',365]};
+const yearBack=d=>{const x=new Date(d+'T00:00:00Z');x.setUTCFullYear(x.getUTCFullYear()-1);return x.toISOString().slice(0,10)};
+const caReal=(d,st)=>D.summary.filter(r=>r.day===d&&(!st||r.store_id===st)).reduce((t,r)=>t+ +r.cash+ +r.wave+ +r.om,0);
+const caHist=(d,st)=>D.hist.filter(r=>r.day===d&&(!st||r.store_id===st)).reduce((t,r)=>t+ +r.ca,0);
+const caDay=(d,st)=>{const a=caReal(d,st);return a||caHist(d,st)};
+const evo=(n,o)=>o>0?((n-o)/o*100):null;
+const pct=v=>v==null?'—':(v>=0?'+':'−')+Math.abs(v).toFixed(1).replace('.',',')+' %';
+function caBlock(){
+  const [lab,n]=CAP[D.caPer],days=daysOf(n),prev=days.map(yearBack),N=sumBy(days,d=>caDay(d)),O=sumBy(prev,d=>caDay(d)),ev=evo(N,O);
+  let groups=[];
+  if(n<=7)groups=days.map((d,i)=>({l:WD[new Date(d+'T00:00:00Z').getUTCDay()]+' '+dmy(d),a:caDay(d),b:caDay(prev[i])}));
+  else{const m=new Map();days.forEach((d,i)=>{const k=d.slice(0,7),g=m.get(k)||{l:k.slice(5)+'/'+k.slice(2,4),a:0,b:0};g.a+=caDay(d);g.b+=caDay(prev[i]);m.set(k,g)});groups=[...m.values()]}
+  const mx=Math.max(1,...groups.map(g=>Math.max(g.a,g.b))),W=520,H=210,pl=6,pb=30,pt=22,gw=(W-pl*2)/groups.length,bw=Math.min(22,gw*.36),ch=H-pb-pt;
+  let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">`;
+  for(let g=0;g<=4;g++){const y=pt+ch-ch*g/4;svg+=`<line x1="${pl}" x2="${W-pl}" y1="${y}" y2="${y}" stroke="#e3e8e5"/>`}
+  groups.forEach((g,i)=>{const x=pl+i*gw+gw/2-bw-1,ha=g.a/mx*ch,hb=g.b/mx*ch;
+    svg+=`<rect x="${x}" y="${pt+ch-hb}" width="${bw}" height="${hb}" rx="1.5" fill="#9bcdb0"/><rect x="${x+bw+2}" y="${pt+ch-ha}" width="${bw}" height="${ha}" rx="1.5" fill="var(--g2)"/>`;
+    if(groups.length<=8)svg+=`<text x="${x+bw+1}" y="${pt+ch-Math.max(ha,hb)-5}" text-anchor="middle" font-size="9" fill="#46524b">${compact(g.a)}</text>`;
+    svg+=`<text x="${pl+i*gw+gw/2}" y="${H-12}" text-anchor="middle" font-size="9.5" fill="#68756e">${g.l}</text>`});
+  svg+='</svg>';
+  const rows=SHOPS.map(st=>{const a=sumBy(days,d=>caDay(d,st)),b=sumBy(prev,d=>caDay(d,st)),e=evo(a,b);return `<tr><td>${dot(st)}<b>${esc(SHORT[st])}</b></td><td class="n">${fmt(a)}</td><td class="n mu">${b?fmt(b):'—'}</td><td class="n" style="color:${e==null?'var(--mu)':e>=0?'var(--g)':'var(--rd)'}"><b>${pct(e)}</b></td></tr>`}).join('');
+  return `<div class="card"><h2>${ic('trending-up')}Chiffre d’affaires <small class="mu" style="font-weight:400">${lab.toLowerCase()} · du ${dmyFull(days[0])} au ${dmyFull(days[n-1])} · comparé à la même période de l’année précédente</small></h2>
+  <div class="modes" id="caper">${Object.entries(CAP).map(([k,v])=>`<button data-k="${k}" class="${D.caPer===k?'on':''}">${v[0]}</button>`).join('')}</div>
+  <div class="kpi"><div><small>${ic('banknote')}CA de la période (N)</small><b>${fmt(N)}</b><small>${dmyFull(days[0])} → ${dmyFull(days[n-1])}</small></div><div><small>${ic('clock')}Même période N‑1</small><b>${O?fmt(O):'—'}</b><small>${dmyFull(prev[0])} → ${dmyFull(prev[n-1])}</small></div><div><small>${ic('trending-up')}Évolution</small><b style="color:${ev==null?'var(--mu)':ev>=0?'var(--g)':'var(--rd)'}">${pct(ev)}</b><small>${ev==null?'pas encore de comparaison':signed(N-O)}</small></div></div>
+  <div class="grid2" style="grid-template-columns:1fr 1fr"><div><div class="lg"><span><i class="sw" style="background:var(--g2)"></i>Période N</span><span><i class="sw" style="background:#9bcdb0"></i>N‑1</span></div>${svg}</div>
+  <div class="tw"><table><thead><tr><th>Magasin</th><th class="n">Période N</th><th class="n">N‑1</th><th class="n">Évolution</th></tr></thead><tbody>${rows}<tr><td><b>Total</b></td><td class="n"><b>${fmt(N)}</b></td><td class="n"><b>${O?fmt(O):'—'}</b></td><td class="n"><b>${pct(ev)}</b></td></tr></tbody></table></div></div>
+  ${O?'':'<p class="mu" style="font-size:12px;margin:8px 0 0">Pas encore d’historique pour l’année précédente. Il sera repris de l’ancien logiciel (import Excel), onglet Excel / CSV.</p>'}</div>`;
+}
+/* --- Clôtures de caisse et écarts --- */
+function gapInfo(c){
+  const d=(c.counted_cash==null?c.cash:c.counted_cash)-c.cash;
+  if(d===0)return {d,lab:'Conforme',cls:'b-ok',act:''};
+  if(d>0)return c.gap_status==='surplus_noted'?{d,lab:'Surplus noté',cls:'b-ok',act:''}:{d,lab:'Surplus',cls:'b-wait',act:'note'};
+  if(c.gap_status==='accepted')return {d,lab:'Justification acceptée',cls:'b-ok',act:''};
+  if(c.gap_status==='lifted')return {d,lab:'Retenue levée',cls:'b-gr',act:''};
+  if(c.gap_status==='retained')return {d,lab:'Retenue salaire',cls:'b-bad',act:'lift'};
+  return c.note?{d,lab:'À examiner',cls:'b-wait',act:'review'}:{d,lab:'Retenue salaire',cls:'b-bad',act:'lift'};
+}
+const cashierOf=st=>(D.profiles.find(p=>p.store_id===st&&p.role==='cashier'&&p.active)||{full_name:'—'}).full_name;
+function closBlock(){
+  const list=D.closuresAll.slice(0,12),todo=list.filter(c=>['note','review'].includes(gapInfo(c).act)).length;
+  const ret={};list.forEach(c=>{const g=gapInfo(c);if(g.d<0&&g.lab==='Retenue salaire'){const n=cashierOf(c.store_id);ret[n]=(ret[n]||0)+Math.abs(g.d)}});
+  const rows=list.map(c=>{const g=gapInfo(c),dt=c.created_at;
+    const act=g.act==='note'?`<div class="row" style="gap:6px;margin-top:4px"><input id="cn-${c.id}" placeholder="Note du Directeur" style="padding:6px;width:150px"><button class="btn sm sec" data-ca="note|${c.id}">Noter</button></div>`
+     :g.act==='review'?`<div class="row" style="gap:6px;margin-top:4px"><button class="btn sm sec" data-ca="accept|${c.id}">Accepter la justification</button><button class="btn sm sec" data-ca="retain|${c.id}">Retenir sur salaire</button></div>`
+     :g.act==='lift'?`<div style="margin-top:4px"><button class="btn sm sec" data-ca="lift|${c.id}">Lever la retenue</button></div>`:'';
+    return `<tr><td>${dmy(c.day)}<div class="mu" style="font-size:12px">${hhmm(dt)}</div></td><td><b>${esc(cashierOf(c.store_id))}</b><div class="mu" style="font-size:12px">${esc(SHORT[c.store_id])}</div></td><td class="n">${fmt(c.cash)}</td><td class="n">${c.counted_cash==null?'—':fmt(c.counted_cash)}</td><td class="n" style="color:${g.d>0?'var(--g)':g.d<0?'var(--rd)':'inherit'}"><b>${g.d===0?'0 F':signed(g.d)}</b></td><td class="mu">${c.note?'« '+esc(c.note)+' »':g.d<0?'Aucune justification':''}${c.director_note?'<div style="font-size:12px">Directeur : '+esc(c.director_note)+'</div>':''}</td><td><span class="badge ${g.cls}">${g.lab}</span>${act}</td></tr>`}).join('')||'<tr><td colspan="7" class="mu">Aucune clôture pour le moment.</td></tr>';
+  return `<div class="card"><h2>${ic('lock')}Clôtures de caisse et écarts <small class="mu" style="font-weight:400">${todo?todo+' à traiter':'rien à traiter'}</small></h2><div class="tw"><table><thead><tr><th>Clôture</th><th>Caissier</th><th class="n">Attendu</th><th class="n">Compté</th><th class="n">Écart</th><th>Justification / note</th><th>État et action</th></tr></thead><tbody>${rows}</tbody></table></div>
+  <p class="mu" style="font-size:12.5px;margin:10px 0 0">${Object.keys(ret).length?'Retenues à opérer sur salaire : '+Object.entries(ret).map(([n,v])=>'<b>'+esc(n)+'</b> '+fmt(v)).join(' · '):'Aucune retenue à opérer sur salaire.'}</p>
+  <p class="mu" style="font-size:12.5px;margin:6px 0 0">Manque sans justification : retenue salaire. Manque justifié : le Directeur accepte ou retient. Surplus : noté par le Directeur.</p></div>`;
+}
+function dueBlock(){
+  const rows=SHOPS.map(st=>{const b=D.cbal.find(x=>x.store_id===st)||{invoiced:0,paid:0},r=b.invoiced-b.paid;
+    return `<tr><td>${dot(st)}<b>${esc(STORES[st])}</b></td><td class="n" style="color:${r>0?'var(--rd)':'inherit'}"><b>${fmt(Math.max(0,r))}</b></td><td class="n">${r<0?'<b style="color:var(--g)">'+fmt(-r)+'</b>':'—'}</td></tr>`}).join('');
+  return `<div class="card"><h2>${ic('store')}Dû au Magasin Central <small class="mu" style="font-weight:400">par les magasins</small></h2><div class="tw"><table><thead><tr><th>Magasin</th><th class="n">Reste dû</th><th class="n">Avance</th></tr></thead><tbody>${rows}</tbody></table></div><p class="mu" style="font-size:12.5px;margin:8px 0 0">Reste dû = factures du Central moins versements confirmés.</p></div>`;
 }
 function dirOverview(){
   const days=daysOf(+D.per),R=sumBy(days,d=>recDay(d)),Dp=sumBy(days,d=>depDay(d)),Sd=R-Dp,today=dayStr(0),Rt=recDay(today),Dt=depDay(today);
@@ -528,7 +590,7 @@ function dirOverview(){
   const V=[...vm.values()].sort((a,b)=>b.t-a.t),vmax=(V[0]&&V[0].t)||1;
   const vrows=V.slice(0,5).map((x,i)=>`<tr><td><b>${i+1}</b></td><td><b>${esc(x.n)}</b><div class="mu" style="font-size:12px">${esc(STORES[x.st])}</div></td><td style="width:34%"><div style="background:#e6ebe8;border-radius:4px"><div style="height:8px;border-radius:4px;background:var(--g2);width:${x.t/vmax*100}%"></div></div></td><td class="n">${fmt(x.t)}</td><td class="n mu">${x.c}</td></tr>`).join('')||'<tr><td colspan="5" class="mu">Aucune vente sur la période.</td></tr>';
   const srows=SHOPS.map(s=>{const r=sumBy(days,d=>recDay(d,s)),e=sumBy(days,d=>depDay(d,s)),al=D.alerts.filter(a=>a.store_id===s),r0=al.filter(a=>a.qty<=0),lw=al.length-r0.length;
-    return `<tr><td><b>${esc(STORES[s])}</b></td><td class="n">${sumBy(days,d=>ticketsDay(d,s))}</td><td class="n">${fmt(r)}</td><td class="n">${fmt(e)}</td><td class="n" style="color:${r-e>=0?'var(--g)':'var(--rd)'}"><b>${signed(r-e)}</b></td><td>${al.length?(r0.length?`<span class="badge b-bad blink">${r0.length} rupture${r0.length>1?'s':''}</span> <b style="color:var(--rd);font-size:12.5px">${r0.map(z=>esc(z.name)).join(', ')}</b> `:'')+(lw?`<span class="badge b-wait">${lw} faible${lw>1?'s':''}</span>`:''):'<span class="badge b-ok">RAS</span>'}</td></tr>`}).join('');
+    return `<tr><td>${dot(s)}<b>${esc(STORES[s])}</b></td><td class="n">${sumBy(days,d=>ticketsDay(d,s))}</td><td class="n">${fmt(r)}</td><td class="n">${fmt(e)}</td><td class="n" style="color:${r-e>=0?'var(--g)':'var(--rd)'}"><b>${signed(r-e)}</b></td><td>${al.length?(r0.length?`<span class="badge b-bad blink">${r0.length} rupture${r0.length>1?'s':''}</span> <b style="color:var(--rd);font-size:12.5px">${r0.map(z=>esc(z.name)).join(', ')}</b> `:'')+(lw?`<span class="badge b-wait">${lw} faible${lw>1?'s':''}</span>`:''):'<span class="badge b-ok">RAS</span>'}</td></tr>`}).join('');
   const dd=(D.per==='1'?daysOf(7):days).slice().reverse();
   const drows=dd.map(d=>{const r=recDay(d),e=depDay(d);return `<tr><td>${WD[new Date(d+'T00:00:00Z').getUTCDay()]} ${dmy(d)}</td><td class="n">${fmt(r)}</td><td class="n">${fmt(e)}</td><td class="n" style="color:${r-e>=0?'var(--g)':'var(--rd)'}"><b>${signed(r-e)}</b></td></tr>`}).join('');
   const al8=D.alerts.slice().sort((a,b)=>a.qty-b.qty).slice(0,8).map(a=>`<tr><td>${esc(a.name)}</td><td>${esc(STORES[a.store_id])}</td><td class="n"><span class="badge ${a.qty<=0?'b-bad blink':'b-wait'}">${a.qty}</span></td></tr>`).join('')||'<tr><td colspan="3" class="mu">Aucune alerte.</td></tr>';
@@ -537,6 +599,7 @@ function dirOverview(){
   <div class="card"><h2>Connexion des magasins <small class="mu" style="font-weight:400">${offl.length?offl.length+' hors ligne':net.every(x=>x.state==='on')?'tous en ligne':net.filter(x=>x.state==='on').length+' en ligne'}</small></h2><div class="row">${net.map(x=>`<span class="badge ${x.state==='on'?'b-ok':x.state==='off'?'b-wait':'b-gr'}" style="padding:6px 12px;border-radius:99px">${esc(SHORT[x.s])} · ${x.state==='on'?'en ligne':x.state==='off'?'hors ligne depuis '+x.since+(x.pending?' · '+x.pending+' en attente':''):'jamais connecté'}</span>`).join('')}</div></div>
   ${perBar()}${fibreBanner()}
   <div class="kpi"><div><small>${ic('banknote')}Recettes</small><b>${fmt(R)}</b><small>Aujourd’hui : ${fmt(Rt)}</small></div><div><small>${ic('trending-up')}Dépenses</small><b>${fmt(Dp)}</b><small>Aujourd’hui : ${fmt(Dt)}</small></div><div><small>${ic('wallet')}Solde</small><b style="color:${Sd>=0?'var(--g)':'var(--rd)'}">${signed(Sd)}</b><small>Aujourd’hui : ${signed(Rt-Dt)}</small></div><div><small>${ic('receipt')}Tickets</small><b>${tk}</b><small>Panier moyen ${fmt(tk?gross/tk:0)}</small></div><div><small>${ic('users')}Créances clients</small><b>${fmt(sumBy(open,c=>c.amount-c.paid))}</b><small>${late.length} en retard · ${fmt(sumBy(late,c=>c.amount-c.paid))}</small></div></div>
+  ${caBlock()}
   <div class="grid2"><div class="card"><h2>Recettes et dépenses <small class="mu" style="font-weight:400">par jour, en F</small></h2>${chartSvg(daysOf(D.per==='30'?30:7))}</div>
   <div class="card"><h2>Meilleurs vendeurs <small class="mu" style="font-weight:400">${perLabel()}</small></h2>${V[0]?`<div class="best">${ic('trophy',26)}<div><div class="mu" style="font-size:12px">Meilleur vendeur</div><b>${esc(V[0].n)} · ${esc(STORES[V[0].st])}</b><div>${fmt(V[0].t)} · ${V[0].c} tickets</div></div></div>`:''}<table><tbody>${vrows}</tbody></table></div></div>
   <div class="card"><h2>Magasins <small class="mu" style="font-weight:400">${perLabel()}</small></h2><div class="tw"><table><thead><tr><th>Magasin</th><th class="n">Tickets</th><th class="n">Recettes</th><th class="n">Dépenses</th><th class="n">Solde</th><th>Stock</th></tr></thead><tbody>${srows}</tbody></table></div></div>
@@ -544,17 +607,24 @@ function dirOverview(){
   <div class="card"><h2>Stock à surveiller <small class="mu" style="font-weight:400">${D.alerts.length} alertes</small></h2><table><thead><tr><th>Article</th><th>Magasin</th><th class="n">Stock</th></tr></thead><tbody>${al8}</tbody></table></div></div>
   <div class="card"><h2>Dernières ventes</h2><div class="tw"><table><thead><tr><th>Heure</th><th>Magasin</th><th>Vendeur</th><th>Client</th><th>Paiement</th><th class="n">Montant</th></tr></thead><tbody>${rec}</tbody></table></div></div>
   <div class="card"><h2>Rapport du soir <small class="mu" style="font-weight:400">résumé prêt à envoyer</small></h2><pre id="rtx" style="white-space:pre-wrap;background:#f4f6f4;border-radius:10px;padding:10px;font:13px/1.45 ui-monospace,monospace">${esc(rapportText())}</pre>
-  <div class="row"><div style="flex:1;min-width:160px"><label>WhatsApp du Directeur</label><input id="rt" type="tel" inputmode="tel" placeholder="77 000 00 00" value="${esc(D.rapp.tel)}"></div><div style="flex:1;min-width:160px"><label>E-mail</label><input id="rmm" type="email" placeholder="nom@exemple.com" value="${esc(D.rapp.mail)}"></div></div>
-  <div class="row" style="margin-top:12px"><button class="btn" id="rwa">${ic('smartphone',16)}Envoyer par WhatsApp</button><button class="btn sec" id="rem">E-mail</button><button class="btn sec" id="rcp">Copier</button></div></div>`;
+  <div class="row"><div style="flex:1;min-width:160px"><label>WhatsApp du Directeur</label><input id="rt" type="tel" inputmode="tel" placeholder="77 000 00 00" value="${esc(D.rapp.tel)}"></div><div style="flex:1;min-width:160px"><label>E-mail</label><input id="rmm" type="email" placeholder="nom@exemple.com" value="${esc(D.rapp.mail)}"></div><div style="flex:1;min-width:140px"><label>Heure d’envoi automatique</label><input id="rhh" type="time" value="${esc(D.rapp.heure||'20:30')}"></div></div>
+  <div class="row" style="margin-top:12px"><button class="btn" id="rwa">${ic('smartphone',16)}Envoyer par WhatsApp</button><button class="btn sec" id="rem">E-mail</button><button class="btn sec" id="rcp">Copier</button></div></div>
+  ${closBlock()}${dueBlock()}`;
 }
 function bindOverview(){
   document.querySelectorAll('#per button').forEach(b=>b.onclick=()=>{D.per=b.dataset.p;draw()});
   const g=$('#gov');if(g)g.onclick=()=>{S.tab='versements';draw()};
-  const sv=()=>{D.rapp={tel:$('#rt').value,mail:$('#rmm').value};LS.set('rapp',D.rapp)};
+  const sv=()=>{D.rapp={tel:$('#rt').value,mail:$('#rmm').value,heure:$('#rhh').value||'20:30'};LS.set('rapp',D.rapp)};
   $('#rwa').onclick=()=>{sv();let d=D.rapp.tel.replace(/\D/g,'');if(d.length<9){toast('Saisissez le numéro WhatsApp (9 chiffres).');return}if(d.length===9)d='221'+d;window.open('https://wa.me/'+d+'?text='+encodeURIComponent(rapportText()),'_blank')};
   $('#rem').onclick=()=>{sv();if(!/.+@.+/.test(D.rapp.mail)){toast('Saisissez une adresse e-mail valide.');return}location.href='mailto:'+D.rapp.mail+'?subject='+encodeURIComponent('Rapport du soir MINANE SHOP — '+dmyFull(dayStr(0)))+'&body='+encodeURIComponent(rapportText())};
   $('#rcp').onclick=()=>{sv();try{navigator.clipboard.writeText(rapportText()).then(()=>toast('Rapport copié.'),()=>toast('Sélectionnez le texte puis copiez.'))}catch{toast('Sélectionnez le texte puis copiez.')}};
-  ['rt','rmm'].forEach(i=>$('#'+i).onchange=sv);
+  ['rt','rmm','rhh'].forEach(i=>$('#'+i).onchange=sv);
+  document.querySelectorAll('#caper button').forEach(b=>b.onclick=()=>{D.caPer=b.dataset.k;draw()});
+  document.querySelectorAll('[data-ca]').forEach(b=>b.onclick=async()=>{
+    const [act,id]=b.dataset.ca.split('|'),now=new Date().toISOString();
+    const patch=act==='accept'?{gap_status:'accepted'}:act==='retain'?{gap_status:'retained'}:act==='lift'?{gap_status:'lifted'}:{gap_status:'surplus_noted',director_note:($('#cn-'+id).value||'').trim()||null};
+    try{await q(sb.from('closures').update({...patch,decided_by:me.id,decided_at:now}).eq('id',id).select('id'));await loadDirector();draw()}catch(e){toast('Erreur : '+(e.message||e))}
+  });
 }
 function dirDepenses(){
   const days=daysOf(+D.per),list=D.exp.filter(e=>days.includes(e.day)),tot=sumBy(list,e=>e.amount);
