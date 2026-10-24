@@ -8,7 +8,7 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <meta name="theme-color" content="#1F5C3B">
 <style>
-:root{--g:#1F5C3B;--g2:#2c7a50;--bg:#f4f6f4;--card:#fff;--tx:#1b2420;--mu:#68756e;--bd:#dbe2dd;--rd:#b3261e;--or:#b26a00;--bl:#1456a8}
+:root{--ic-blue:#2b64c4;--ic-green:#1e7a34;--ic-orange:#d9761a;--ic-purple:#7a4bc2;--ic-teal:#0f8a8a;--ic-red:#c2413a;--g:#1F5C3B;--g2:#2c7a50;--bg:#f4f6f4;--card:#fff;--tx:#1b2420;--mu:#68756e;--bd:#dbe2dd;--rd:#b3261e;--or:#b26a00;--bl:#1456a8}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
 button,input,select,textarea{font:inherit;color:inherit}
@@ -56,10 +56,14 @@ td.n,th.n{text-align:right;white-space:nowrap}
 .combo.z{border-color:#f0b8b4;background:#fff6f5}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#222;color:#fff;border-radius:10px;padding:10px 16px;z-index:99;max-width:90vw}
 .login{max-width:380px;margin:12vh auto;padding:0 16px}
-.login h1{color:var(--g);margin:0 0 4px}
+.logo{background:#000;border-radius:16px;padding:6px;text-align:center}.logo img{max-width:100%;height:auto;max-height:190px;display:inline-block}
+header.top img.hl{height:30px;width:auto;background:#000;border-radius:6px;padding:2px 4px}
 .err{color:var(--rd);font-size:13px;margin-top:8px}
 .kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:12px}
 .kpi div{background:#fff;border:1px solid var(--bd);border-radius:12px;padding:10px}.kpi small{color:var(--mu);display:block;font-size:12px}.kpi b{font-size:18px}
+.ic{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none;vertical-align:-4px;margin-right:6px}
+nav.tabs button .ic{margin-right:5px}.kpi small .ic{width:15px;height:15px;margin-right:4px;vertical-align:-3px}.btn .ic{stroke:#fff;color:#fff!important}.btn.sec .ic{stroke:currentColor}
+header.top .pill .ic{margin-right:4px;width:14px;height:14px;vertical-align:-2px;color:#fff!important}
 .mu{color:var(--mu)}.r{text-align:right}
 #rcpt{display:none}
 @media print{body>*:not(#rcpt){display:none!important}#rcpt{display:block;font:12px/1.35 monospace;width:72mm;margin:0;color:#000}}
@@ -72,7 +76,7 @@ td.n,th.n{text-align:right;white-space:nowrap}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 'use strict';
-const BUILD='1.0';
+const BUILD='1.2';
 const SB_URL='https://ehnptnwvwshmcaqrupru.supabase.co';
 const SB_KEY='sb_publishable_h3I7whuNEfbnfub_Q0eP6w_e77YMUqn';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
@@ -80,6 +84,9 @@ const STORES={SAN:'MINANE SANDAGA',MIR:'CHRISBELLA SANDAGA',HLM:'HLM 5',TOU:'TOU
 const SHOPS=['SAN','MIR','HLM','TOU','PIK'];
 const $=(s,r=document)=>r.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ICONS={"shopping-cart": "<circle cx=\"8\" cy=\"21\" r=\"1\"/><circle cx=\"19\" cy=\"21\" r=\"1\"/><path d=\"M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12\"/>", "receipt": "<path d=\"M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z\"/><path d=\"M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8\"/><path d=\"M12 17.5v-11\"/>", "package": "<path d=\"m7.5 4.27 9 5.15\"/><path d=\"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z\"/><path d=\"m3.3 7 8.7 5 8.7-5\"/><path d=\"M12 22V12\"/>", "lock": "<rect width=\"18\" height=\"11\" x=\"3\" y=\"11\" rx=\"2\" ry=\"2\"/><path d=\"M7 11V7a5 5 0 0 1 10 0v4\"/>", "layout-dashboard": "<rect width=\"7\" height=\"9\" x=\"3\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"14\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"9\" x=\"14\" y=\"12\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"3\" y=\"16\" rx=\"1\"/>", "wallet": "<path d=\"M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1\"/><path d=\"M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4\"/>", "clipboard-list": "<rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\" ry=\"1\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"/><path d=\"M12 11h4\"/><path d=\"M12 16h4\"/><path d=\"M8 11h.01\"/><path d=\"M8 16h.01\"/>", "banknote": "<rect width=\"20\" height=\"12\" x=\"2\" y=\"6\" rx=\"2\"/><circle cx=\"12\" cy=\"12\" r=\"2\"/><path d=\"M6 12h.01M18 12h.01\"/>", "smartphone": "<rect width=\"14\" height=\"20\" x=\"5\" y=\"2\" rx=\"2\" ry=\"2\"/><path d=\"M12 18h.01\"/>", "users": "<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/>", "printer": "<path d=\"M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2\"/><path d=\"M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6\"/><rect x=\"6\" y=\"14\" width=\"12\" height=\"8\" rx=\"1\"/>", "log-out": "<path d=\"M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4\"/><polyline points=\"16 17 21 12 16 7\"/><line x1=\"21\" x2=\"9\" y1=\"12\" y2=\"12\"/>", "check": "<path d=\"M20 6 9 17l-5-5\"/>", "upload": "<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"17 8 12 3 7 8\"/><line x1=\"12\" x2=\"12\" y1=\"3\" y2=\"15\"/>", "plus": "<path d=\"M5 12h14\"/><path d=\"M12 5v14\"/>", "minus": "<path d=\"M5 12h14\"/>", "store": "<path d=\"m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7\"/><path d=\"M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8\"/><path d=\"M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4\"/><path d=\"M2 7h20\"/>", "trending-up": "<polyline points=\"22 7 13.5 15.5 8.5 10.5 2 17\"/><polyline points=\"16 7 22 7 22 13\"/>", "triangle-alert": "<path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3\"/><path d=\"M12 9v4\"/><path d=\"M12 17h.01\"/>", "clock": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><polyline points=\"12 6 12 12 16 14\"/>", "download": "<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"7 10 12 15 17 10\"/><line x1=\"12\" x2=\"12\" y1=\"15\" y2=\"3\"/>", "truck": "<path d=\"M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2\"/><path d=\"M15 18H9\"/><path d=\"M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14\"/><circle cx=\"17\" cy=\"18\" r=\"2\"/><circle cx=\"7\" cy=\"18\" r=\"2\"/>", "file-spreadsheet": "<path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"/><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"/><path d=\"M8 13h2\"/><path d=\"M14 13h2\"/><path d=\"M8 17h2\"/><path d=\"M14 17h2\"/>"};
+const ICOL={"shopping-cart": "green", "receipt": "blue", "package": "orange", "lock": "purple", "layout-dashboard": "blue", "wallet": "teal", "clipboard-list": "blue", "banknote": "green", "smartphone": "blue", "users": "orange", "printer": "blue", "log-out": "red", "upload": "teal", "store": "green", "trending-up": "blue", "triangle-alert": "orange", "clock": "orange", "download": "blue", "truck": "orange", "file-spreadsheet": "green"};
+const ic=(n,sz)=>ICONS[n]?'<svg class="ic" viewBox="0 0 24 24" width="'+(sz||18)+'" height="'+(sz||18)+'" aria-hidden="true"'+(ICOL[n]?' style="color:var(--ic-'+ICOL[n]+')"':'')+'>'+ICONS[n]+'</svg>':'';
 const fmt=n=>Number(n||0).toLocaleString('fr-FR').replace(/[  ]/g,' ')+' F';
 const uid=()=>crypto.randomUUID();
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
@@ -115,7 +122,8 @@ async function pushItem(it){
     const r=await sb.from('closures').upsert(p,{onConflict:'store_id,day',ignoreDuplicates:true});if(r.error)throw r.error;
   }
 }
-async function syncQueue(){
+function syncQueue(){return _sync().catch(e=>{syncing=false;console.warn('synchro',e&&e.message||e)})}
+async function _sync(){
   if(syncing||!navigator.onLine||!me||me.role!=='cashier')return;
   syncing=true;let done=0,changed=false;
   try{
@@ -145,7 +153,7 @@ function effStock(){
 
 /* ---------- authentification ---------- */
 function loginScreen(msg){
-  $('#app').innerHTML=`<div class="login"><h1>Minane Shop</h1><div class="mu" style="margin-bottom:18px">Gestion des magasins</div>
+  $('#app').innerHTML=`<div class="login"><div class="logo"><img src="logo.png" alt="Minane"></div><div class="mu" style="margin:12px 0 18px;text-align:center">Gestion des magasins</div>
   <label>Identifiant</label><input id="lu" type="email" autocomplete="username" autocapitalize="none" placeholder="exemple@minane-gestion.app">
   <label>Mot de passe</label><input id="lp" type="password" autocomplete="current-password">
   <button class="btn big" style="margin-top:14px" id="lgo">Se connecter</button><div class="err" id="lerr">${esc(msg||'')}</div>
@@ -205,7 +213,7 @@ function paintNet(){
 }
 function shell(tabs,body){
   const who=me.role==='cashier'?STORES[me.store_id]:me.role==='central'?STORES.CEN:'Direction';
-  return `<header class="top"><h1>${esc(who)}<small>${esc(me.full_name)}</small></h1><span id="net" class="pill ok">En ligne</span><button class="pill" id="lo" style="border:0;color:#fff">Quitter</button></header>
+  return `<header class="top"><img class="hl" src="logo.png" alt="Minane"><h1>${esc(who)}<small>${esc(me.full_name)}</small></h1><span id="net" class="pill ok">En ligne</span><button class="pill" id="lo" style="border:0;color:#fff">${ic('log-out',14)}Quitter</button></header>
   <nav class="tabs">${tabs.map(([k,l])=>`<button data-tab="${k}" class="${S.tab===k?'on':''}">${l}</button>`).join('')}</nav><main>${body}</main>`;
 }
 function bindShell(){
@@ -225,7 +233,7 @@ window.addEventListener('offline',paintNet);
 const mkey=l=>l.article_id+'|'+l.size+'|'+l.color;
 function artStock(id,es){return es.filter(r=>r.article_id===id).reduce((s,r)=>s+r.qty,0)}
 function drawCashier(){
-  const tabs=[['caisse','Caisse'],['journal','Journal'],['stock','Stock'],['cloture','Clôture']];
+  const tabs=[['caisse',ic('shopping-cart')+'Caisse'],['journal',ic('receipt')+'Journal'],['stock',ic('package')+'Stock'],['cloture',ic('lock')+'Clôture']];
   let b='';
   if(S.tab==='caisse')b=viewCaisse();
   else if(S.tab==='journal')b=viewJournal();
@@ -242,11 +250,11 @@ function viewCaisse(){
   const total=S.cart.reduce((s,l)=>s+l.qty*l.price,0);
   return `<div class="grid2"><div><div class="card"><input id="srch" placeholder="Rechercher un article…" value="${esc(S.search)}">
   <div class="cards" style="margin-top:10px">${list.length?list.map(a=>`<button class="art" data-art="${esc(a.id)}"><b>${esc(a.name)}</b><span>${esc(a.category)} · stock ${artStock(a.id,es)}</span><span class="p">${fmt(a.price)}</span></button>`).join(''):'<div class="mu">Aucun article en stock dans ce magasin. Le Directeur doit charger l’inventaire.</div>'}</div></div></div>
-  <div><div class="card"><h2>Ticket en cours</h2>
+  <div><div class="card"><h2>${ic('shopping-cart')}Ticket en cours</h2>
   ${S.cart.length?S.cart.map((l,i)=>`<div class="cart-line"><div><b>${esc(l.name)}</b><small>${[l.size&&'Pointure '+l.size,l.color].filter(Boolean).join(' · ')||'&nbsp;'} · ${fmt(l.price)}</small></div><div class="qty"><button data-m="${i}">−</button><b>${l.qty}</b><button data-p="${i}">+</button></div><div class="r"><b>${fmt(l.qty*l.price)}</b></div></div>`).join(''):'<div class="mu">Touchez un article pour l’ajouter.</div>'}
   <label>Vendeur ou vendeuse</label><select id="vsel"><option value="">— choisir —</option>${VEND.map(v=>`<option value="${v.id}" ${S.vend===v.id?'selected':''}>${esc(v.full_name)}</option>`).join('')}</select>
   <div class="total"><span>Total</span><span>${fmt(total)}</span></div>
-  <button class="btn big" id="pay" ${S.cart.length&&S.vend?'':'disabled'}>Encaisser</button>
+  <button class="btn big" id="pay" ${S.cart.length&&S.vend?'':'disabled'}>${ic('banknote',20)}Encaisser</button>
   ${S.cart.length?'<button class="btn sec big" style="margin-top:8px" id="clr">Vider le ticket</button>':''}</div></div></div>`;
 }
 function bindCaisse(){
@@ -282,7 +290,7 @@ function payModal(){
   <div class="total" style="font-size:16px"><span>Reste à crédit</span><span id="rest">0 F</span></div>
   <div id="cred" style="display:none"><label>Nom du client (obligatoire pour un crédit)</label><input id="cn"><label>Téléphone</label><input id="cp" inputmode="tel"><label>Date limite</label><input id="cd" type="date"></div>
   <div id="perr" class="err"></div>
-  <button class="btn big" style="margin-top:12px" id="ok">Valider la vente</button><button class="btn sec big" style="margin-top:8px" id="cx">Annuler</button>`);
+  <button class="btn big" style="margin-top:12px" id="ok">${ic('check',20)}Valider la vente</button><button class="btn sec big" style="margin-top:8px" id="cx">Annuler</button>`);
   const val=id=>Math.max(0,Math.round(+$(id,m).value||0));
   const upd=()=>{const rest=total-val('#pc')-val('#pw')-val('#po');$('#rest',m).textContent=fmt(Math.max(0,rest));$('#cred',m).style.display=rest>0?'block':'none';return rest};
   ['#pc','#pw','#po'].forEach(i=>$(i,m).oninput=upd);upd();
@@ -309,11 +317,11 @@ function finishSale(total,i){
 }
 function receipt(sale,lines,pays,vname){
   const lab={cash:'Espèces',wave:'Wave',om:'Orange Money',credit:'Crédit'};
-  const html=`<div style="text-align:center"><b style="font-size:15px">MINANE SHOP</b><br>${esc(STORES[sale.store_id])}<br>${dtFr(sale.sold_at)}<br>Ticket ${esc(sale.ticket_no)}</div><hr>
+  const html=`<div style="text-align:center"><img src="logo-ticket.png" alt="MINANE" style="width:46mm;height:auto"><br><b style="font-size:15px">MINANE SHOP</b><br>${esc(STORES[sale.store_id])}<br>${dtFr(sale.sold_at)}<br>Ticket ${esc(sale.ticket_no)}</div><hr>
   ${lines.map(l=>`${esc(l.name)}<br>&nbsp;&nbsp;${[l.size&&'P'+l.size,l.color].filter(Boolean).join(' ')} ${l.qty} x ${l.price} = <b>${l.qty*l.price}</b><br>`).join('')}<hr>
   <b>TOTAL ${sale.total} F</b><br>${pays.map(p=>lab[p.method]+' : '+p.amount+' F').join('<br>')}<br>${vname?'Vendeur : '+esc(vname)+'<br>':''}${sale.customer_name?'Client : '+esc(sale.customer_name)+'<br>':''}<br><div style="text-align:center">Merci de votre visite</div>`;
   $('#rcpt').innerHTML=html;
-  const m=modal(`<h2 style="margin-top:0">Vente enregistrée</h2><div class="mu" style="margin-bottom:10px">Ticket ${esc(sale.ticket_no)} · ${fmt(sale.total)}${navigator.onLine?'':' · sera envoyé au retour d’internet'}</div><button class="btn big" id="pr">Imprimer le reçu</button><button class="btn sec big" style="margin-top:8px" id="nw">Nouvelle vente</button>`);
+  const m=modal(`<h2 style="margin-top:0">Vente enregistrée</h2><div class="mu" style="margin-bottom:10px">Ticket ${esc(sale.ticket_no)} · ${fmt(sale.total)}${navigator.onLine?'':' · sera envoyé au retour d’internet'}</div><button class="btn big" id="pr">${ic('printer',20)}Imprimer le reçu</button><button class="btn sec big" style="margin-top:8px" id="nw">${ic('plus')}Nouvelle vente</button>`);
   $('#pr',m).onclick=()=>window.print();$('#nw',m).onclick=()=>m.remove();
 }
 
@@ -327,7 +335,7 @@ const lab={cash:'Espèces',wave:'Wave',om:'OM',credit:'Crédit'};
 function sums(list){const t={cash:0,wave:0,om:0,credit:0,total:0};for(const s of list){t.total+=s.total;for(const p of s.sale_payments||[])t[p.method]+=p.amount}return t}
 function viewJournal(){
   const L=mergedSales(),t=sums(L);
-  return `<div class="kpi"><div><small>Ventes du jour</small><b>${fmt(t.total)}</b></div><div><small>Tickets</small><b>${L.length}</b></div><div><small>Espèces</small><b>${fmt(t.cash)}</b></div><div><small>Wave</small><b>${fmt(t.wave)}</b></div><div><small>Orange Money</small><b>${fmt(t.om)}</b></div><div><small>Crédit</small><b>${fmt(t.credit)}</b></div></div>
+  return `<div class="kpi"><div><small>${ic('trending-up')}Ventes du jour</small><b>${fmt(t.total)}</b></div><div><small>${ic('receipt')}Tickets</small><b>${L.length}</b></div><div><small>${ic('banknote')}Espèces</small><b>${fmt(t.cash)}</b></div><div><small>${ic('smartphone')}Wave</small><b>${fmt(t.wave)}</b></div><div><small>${ic('smartphone')}Orange Money</small><b>${fmt(t.om)}</b></div><div><small>${ic('users')}Crédit</small><b>${fmt(t.credit)}</b></div></div>
   <div class="card"><table><tr><th>Heure</th><th>Ticket</th><th>Vendeur</th><th>Paiement</th><th class="n">Total</th><th></th></tr>
   ${L.map(s=>`<tr><td>${hhmm(s.sold_at)}</td><td>${esc(s.ticket_no)}</td><td>${esc((VEND.find(v=>v.id===s.seller_id)||{}).full_name||'')}</td><td>${(s.sale_payments||[]).map(p=>lab[p.method]).join(' + ')}</td><td class="n">${fmt(s.total)}</td><td>${s.failed?'<span class="badge b-bad" title="'+esc(s.err)+'">à vérifier</span>':s.sync?'<span class="badge b-ok">envoyé</span>':'<span class="badge b-wait">en attente</span>'}</td></tr>`).join('')||'<tr><td colspan="6" class="mu">Aucune vente aujourd’hui.</td></tr>'}</table></div>`;
 }
@@ -354,12 +362,12 @@ function bindStock(redraw){
 function viewCloture(){
   const L=mergedSales(),t=sums(L),dayv=dvList();
   const pend=getQ().filter(x=>x.kind==='closure').length,closed=DAYCLOS||pend;
-  return `<div class="kpi"><div><small>Ventes du jour</small><b>${fmt(t.total)}</b></div><div><small>Espèces</small><b>${fmt(t.cash)}</b></div><div><small>Wave</small><b>${fmt(t.wave)}</b></div><div><small>Orange Money</small><b>${fmt(t.om)}</b></div><div><small>Crédit</small><b>${fmt(t.credit)}</b></div></div>
-  <div class="card"><h2>Versement de la recette au Central</h2>
+  return `<div class="kpi"><div><small>${ic('trending-up')}Ventes du jour</small><b>${fmt(t.total)}</b></div><div><small>${ic('banknote')}Espèces</small><b>${fmt(t.cash)}</b></div><div><small>${ic('smartphone')}Wave</small><b>${fmt(t.wave)}</b></div><div><small>${ic('smartphone')}Orange Money</small><b>${fmt(t.om)}</b></div><div><small>${ic('users')}Crédit</small><b>${fmt(t.credit)}</b></div></div>
+  <div class="card"><h2>${ic('wallet')}Versement de la recette au Central</h2>
   <div class="row"><div style="flex:1;min-width:130px"><label>Montant</label><input id="va" type="number" inputmode="numeric" min="0"></div><div style="flex:1;min-width:130px"><label>Par</label><select id="vm"><option value="wave">Wave</option><option value="om">Orange Money</option></select></div></div>
-  <label>Référence de la transaction</label><input id="vr"><button class="btn big" style="margin-top:12px" id="vgo">Envoyer le versement</button>
+  <label>Référence de la transaction</label><input id="vr"><button class="btn big" style="margin-top:12px" id="vgo">${ic('wallet',20)}Envoyer le versement</button>
   <table style="margin-top:12px"><tr><th>Heure</th><th>Mode</th><th class="n">Montant</th><th>Statut</th></tr>${dayv.map(v=>`<tr><td>${hhmm(v.created_at)}</td><td>${v.method==='wave'?'Wave':v.method==='om'?'OM':'Espèces'}</td><td class="n">${fmt(v.amount)}</td><td><span class="badge ${v.status==='confirmed'?'b-ok':v.status==='rejected'?'b-bad':'b-wait'}">${v.status==='confirmed'?'confirmé par le Central':v.status==='rejected'?'refusé':v.local?'en attente d’envoi':'en attente de confirmation'}</span></td></tr>`).join('')||'<tr><td colspan="4" class="mu">Aucun versement aujourd’hui.</td></tr>'}</table></div>
-  <div class="card"><h2>Clôture de la journée</h2>${closed?'<span class="badge b-ok">Journée clôturée</span>':`<label>Espèces comptées en caisse</label><input id="cc" type="number" inputmode="numeric" min="0"><label>Remarque</label><input id="cn"><button class="btn big" style="margin-top:12px" id="cgo">Clôturer la journée</button>`}</div>`;
+  <div class="card"><h2>${ic('lock')}Clôture de la journée</h2>${closed?'<span class="badge b-ok">Journée clôturée</span>':`<label>Espèces comptées en caisse</label><input id="cc" type="number" inputmode="numeric" min="0"><label>Remarque</label><input id="cn"><button class="btn big" style="margin-top:12px" id="cgo">${ic('lock',20)}Clôturer la journée</button>`}</div>`;
 }
 function dvList(){const ids=new Set(DAYVERS.map(v=>v.id));const l=DAYVERS.map(v=>({...v}));for(const it of getQ())if(it.kind==='versement'&&!ids.has(it.payload.id))l.push({...it.payload,created_at:it.at,local:true});return l.sort((a,b)=>b.created_at.localeCompare(a.created_at))}
 function bindCloture(){
@@ -402,7 +410,7 @@ function subscribeRT(){
 }
 function drawDirector(){
   const central=me.role==='central';
-  const tabs=central?[['stock','Stock du Central']]:[['apercu','Vue d’ensemble'],['versements','Versements'],['stock','Stock'],['import','Inventaire (import)']];
+  const tabs=central?[['stock',ic('store')+'Stock du Central']]:[['apercu',ic('layout-dashboard')+'Vue d’ensemble'],['versements',ic('wallet')+'Versements'],['stock',ic('package')+'Stock'],['import',ic('clipboard-list')+'Inventaire (import)']];
   let b='';
   if(S.tab==='apercu')b=dirOverview();
   else if(S.tab==='versements')b=dirVers();
@@ -420,14 +428,14 @@ function dirOverview(){
   for(const c of D.closures)if(by[c.store_id])by[c.store_id].clo=c;
   const all=sums(D.sales),pend=D.vers.filter(v=>v.status==='pending').length;
   return `<div class="row" style="margin-bottom:10px"><label style="margin:0">Journée du</label><input id="dday" type="date" value="${D.day}" style="width:auto"><span class="pill ok" style="margin-left:auto">Mise à jour en direct</span></div>
-  <div class="kpi"><div><small>Ventes de tous les magasins</small><b>${fmt(all.total)}</b></div><div><small>Tickets</small><b>${D.sales.length}</b></div><div><small>Espèces</small><b>${fmt(all.cash)}</b></div><div><small>Wave + OM</small><b>${fmt(all.wave+all.om)}</b></div><div><small>Crédit</small><b>${fmt(all.credit)}</b></div><div><small>Versements à confirmer</small><b>${pend}</b></div></div>
+  <div class="kpi"><div><small>${ic('store')}Ventes de tous les magasins</small><b>${fmt(all.total)}</b></div><div><small>Tickets</small><b>${D.sales.length}</b></div><div><small>Espèces</small><b>${fmt(all.cash)}</b></div><div><small>Wave + OM</small><b>${fmt(all.wave+all.om)}</b></div><div><small>Crédit</small><b>${fmt(all.credit)}</b></div><div><small>${ic('wallet')}Versements à confirmer</small><b>${pend}</b></div></div>
   <div class="cards" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">${SHOPS.map(s=>{const t=sums(by[s].list),last=by[s].list[0];return `<div class="card" style="margin:0"><div class="row" style="justify-content:space-between"><b>${STORES[s]}</b>${by[s].clo?'<span class="badge b-ok">clôturé</span>':by[s].list.length?'<span class="badge b-wait">en cours</span>':'<span class="badge b-gr">aucune vente</span>'}</div>
   <div style="font-size:22px;font-weight:800;margin:6px 0">${fmt(t.total)}</div><div class="mu" style="font-size:13px">${by[s].list.length} ticket(s)${last?' · dernière vente '+hhmm(last.sold_at):''}</div>
   <table style="margin-top:6px;font-size:13px"><tr><td>Espèces</td><td class="n">${fmt(t.cash)}</td></tr><tr><td>Wave</td><td class="n">${fmt(t.wave)}</td></tr><tr><td>Orange Money</td><td class="n">${fmt(t.om)}</td></tr><tr><td>Crédit</td><td class="n">${fmt(t.credit)}</td></tr></table></div>`}).join('')}</div>`;
 }
 function dirVers(){
-  return `<div class="card"><h2>Versements des magasins</h2><table><tr><th>Date</th><th>Magasin</th><th>Mode</th><th>Référence</th><th class="n">Montant</th><th>Statut</th><th></th></tr>
-  ${D.vers.map(v=>`<tr><td>${dtFr(v.created_at)}</td><td>${esc(STORES[v.store_id]||v.store_id)}</td><td>${v.method==='wave'?'Wave':v.method==='om'?'OM':'Espèces'}</td><td>${esc(v.reference||'')}</td><td class="n">${fmt(v.amount)}</td><td><span class="badge ${v.status==='confirmed'?'b-ok':v.status==='rejected'?'b-bad':'b-wait'}">${v.status==='confirmed'?'confirmé':v.status==='rejected'?'refusé':'à confirmer'}</span></td><td class="n">${v.status==='pending'?`<button class="btn sm" data-c="${v.id}">Confirmer</button> <button class="btn sm sec" data-r="${v.id}">Refuser</button>`:''}</td></tr>`).join('')||'<tr><td colspan="7" class="mu">Aucun versement.</td></tr>'}</table></div>`;
+  return `<div class="card"><h2>${ic('wallet')}Versements des magasins</h2><table><tr><th>Date</th><th>Magasin</th><th>Mode</th><th>Référence</th><th class="n">Montant</th><th>Statut</th><th></th></tr>
+  ${D.vers.map(v=>`<tr><td>${dtFr(v.created_at)}</td><td>${esc(STORES[v.store_id]||v.store_id)}</td><td>${v.method==='wave'?'Wave':v.method==='om'?'OM':'Espèces'}</td><td>${esc(v.reference||'')}</td><td class="n">${fmt(v.amount)}</td><td><span class="badge ${v.status==='confirmed'?'b-ok':v.status==='rejected'?'b-bad':'b-wait'}">${v.status==='confirmed'?'confirmé':v.status==='rejected'?'refusé':'à confirmer'}</span></td><td class="n">${v.status==='pending'?`<button class="btn sm" data-c="${v.id}">${ic('check',14)}Confirmer</button> <button class="btn sm sec" data-r="${v.id}">Refuser</button>`:''}</td></tr>`).join('')||'<tr><td colspan="7" class="mu">Aucun versement.</td></tr>'}</table></div>`;
 }
 function bindVers(){
   const act=async(id,st)=>{
@@ -484,13 +492,13 @@ async function readBook(f){
 }
 function dirImport(){
   const I=D.imp;
-  return `<div class="card"><h2>Charger un inventaire (Excel ou CSV)</h2>
+  return `<div class="card"><h2>${ic('clipboard-list')}Charger un inventaire (Excel ou CSV)</h2>
   <div class="mu" style="margin-bottom:8px">Colonnes reconnues : référence, désignation, catégorie, prix, pointure, couleur, quantité. Les quantités du fichier remplacent le stock du magasin choisi, pour les lignes présentes dans le fichier.</div>
   <label>Magasin concerné</label><select id="ist">${Object.keys(STORES).map(k=>`<option value="${k}" ${k===(D.istore||'SAN')?'selected':''}>${STORES[k]}</option>`).join('')}</select>
   <label>Fichier</label><input id="ifile" type="file" accept=".xlsx,.xls,.csv">
   <div id="imsg" class="err">${esc(D.imsg||'')}</div>
   ${I?`<div style="margin-top:10px"><b>${I.arts.length} articles · ${I.lines.length} lignes · ${I.lines.reduce((s,l)=>s+l.counted_qty,0)} pièces</b><table style="margin-top:6px"><tr><th>Réf.</th><th>Désignation</th><th class="n">Prix</th><th>Détail</th></tr>${I.arts.slice(0,8).map(a=>`<tr><td>${esc(a.id)}</td><td>${esc(a.name)}</td><td class="n">${fmt(a.price)}</td><td>${I.lines.filter(l=>l.article_id===a.id).slice(0,6).map(l=>[l.size,l.color].filter(Boolean).join(' ')+' : '+l.counted_qty).join(' · ')}</td></tr>`).join('')}</table>${I.arts.length>8?'<div class="mu">… et '+(I.arts.length-8)+' autres articles</div>':''}
-  <button class="btn big" style="margin-top:12px" id="iapply">Appliquer l’inventaire à ${esc(STORES[D.istore||'SAN'])}</button></div>`:''}</div>`;
+  <button class="btn big" style="margin-top:12px" id="iapply">${ic('upload',20)}Appliquer l’inventaire à ${esc(STORES[D.istore||'SAN'])}</button></div>`:''}</div>`;
 }
 function bindImport(){
   $('#ist').onchange=e=>{D.istore=e.target.value;draw()};
