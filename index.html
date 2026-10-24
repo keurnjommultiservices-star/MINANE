@@ -27,6 +27,7 @@ main{padding:12px;max-width:1200px;margin:0 auto}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .grid2{display:grid;grid-template-columns:1.6fr 1fr;gap:12px}
 @media(max-width:820px){.grid2{grid-template-columns:1fr}}
+@media(max-width:600px){header.top .lbl{display:none}header.top .pill .ic{margin-right:0}header.top{gap:8px}header.top h1{min-width:0}}
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
 .art{background:#fff;border:1px solid var(--bd);border-radius:10px;padding:10px;text-align:left;display:flex;flex-direction:column;gap:4px;min-height:84px}
 .art:active{background:#eaf3ed}
@@ -80,7 +81,7 @@ header.top .pill .ic{margin-right:4px;width:14px;height:14px;vertical-align:-2px
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 'use strict';
-const BUILD='1.6';
+const BUILD='1.7';
 const SB_URL='https://ehnptnwvwshmcaqrupru.supabase.co';
 const SB_KEY='sb_publishable_h3I7whuNEfbnfub_Q0eP6w_e77YMUqn';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
@@ -88,7 +89,7 @@ const STORES={SAN:'MINANE SANDAGA',MIR:'CHRISBELLA SANDAGA',HLM:'HLM 5',TOU:'TOU
 const SHOPS=['SAN','MIR','HLM','TOU','PIK'];
 const $=(s,r=document)=>r.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const ICONS={"arrow-left-right":"<path d=\"M8 3 4 7l4 4\"/><path d=\"M4 7h16\"/><path d=\"m16 21 4-4-4-4\"/><path d=\"M20 17H4\"/>","key-round":"<path d=\"M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z\"/><circle cx=\"16.5\" cy=\"7.5\" r=\".5\" fill=\"currentColor\"/>","shopping-cart": "<circle cx=\"8\" cy=\"21\" r=\"1\"/><circle cx=\"19\" cy=\"21\" r=\"1\"/><path d=\"M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12\"/>", "receipt": "<path d=\"M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z\"/><path d=\"M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8\"/><path d=\"M12 17.5v-11\"/>", "package": "<path d=\"m7.5 4.27 9 5.15\"/><path d=\"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z\"/><path d=\"m3.3 7 8.7 5 8.7-5\"/><path d=\"M12 22V12\"/>", "lock": "<rect width=\"18\" height=\"11\" x=\"3\" y=\"11\" rx=\"2\" ry=\"2\"/><path d=\"M7 11V7a5 5 0 0 1 10 0v4\"/>", "layout-dashboard": "<rect width=\"7\" height=\"9\" x=\"3\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"14\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"9\" x=\"14\" y=\"12\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"3\" y=\"16\" rx=\"1\"/>", "wallet": "<path d=\"M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1\"/><path d=\"M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4\"/>", "clipboard-list": "<rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\" ry=\"1\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"/><path d=\"M12 11h4\"/><path d=\"M12 16h4\"/><path d=\"M8 11h.01\"/><path d=\"M8 16h.01\"/>", "banknote": "<rect width=\"20\" height=\"12\" x=\"2\" y=\"6\" rx=\"2\"/><circle cx=\"12\" cy=\"12\" r=\"2\"/><path d=\"M6 12h.01M18 12h.01\"/>", "smartphone": "<rect width=\"14\" height=\"20\" x=\"5\" y=\"2\" rx=\"2\" ry=\"2\"/><path d=\"M12 18h.01\"/>", "users": "<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/>", "printer": "<path d=\"M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2\"/><path d=\"M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6\"/><rect x=\"6\" y=\"14\" width=\"12\" height=\"8\" rx=\"1\"/>", "log-out": "<path d=\"M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4\"/><polyline points=\"16 17 21 12 16 7\"/><line x1=\"21\" x2=\"9\" y1=\"12\" y2=\"12\"/>", "check": "<path d=\"M20 6 9 17l-5-5\"/>", "upload": "<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"17 8 12 3 7 8\"/><line x1=\"12\" x2=\"12\" y1=\"3\" y2=\"15\"/>", "plus": "<path d=\"M5 12h14\"/><path d=\"M12 5v14\"/>", "minus": "<path d=\"M5 12h14\"/>", "store": "<path d=\"m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7\"/><path d=\"M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8\"/><path d=\"M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4\"/><path d=\"M2 7h20\"/>", "trending-up": "<polyline points=\"22 7 13.5 15.5 8.5 10.5 2 17\"/><polyline points=\"16 7 22 7 22 13\"/>", "triangle-alert": "<path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3\"/><path d=\"M12 9v4\"/><path d=\"M12 17h.01\"/>", "clock": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><polyline points=\"12 6 12 12 16 14\"/>", "download": "<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"7 10 12 15 17 10\"/><line x1=\"12\" x2=\"12\" y1=\"15\" y2=\"3\"/>", "truck": "<path d=\"M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2\"/><path d=\"M15 18H9\"/><path d=\"M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14\"/><circle cx=\"17\" cy=\"18\" r=\"2\"/><circle cx=\"7\" cy=\"18\" r=\"2\"/>", "file-text":"<path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"/><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"/><path d=\"M10 9H8\"/><path d=\"M16 13H8\"/><path d=\"M16 17H8\"/>","file-spreadsheet": "<path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"/><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"/><path d=\"M8 13h2\"/><path d=\"M14 13h2\"/><path d=\"M8 17h2\"/><path d=\"M14 17h2\"/>"};
+const ICONS={"arrow-left-right":"<path d=\"M8 3 4 7l4 4\"/><path d=\"M4 7h16\"/><path d=\"m16 21 4-4-4-4\"/><path d=\"M20 17H4\"/>","key-round":"<path d=\"M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z\"/><circle cx=\"16.5\" cy=\"7.5\" r=\".5\" fill=\"currentColor\"/>","shopping-cart": "<circle cx=\"8\" cy=\"21\" r=\"1\"/><circle cx=\"19\" cy=\"21\" r=\"1\"/><path d=\"M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12\"/>", "receipt": "<path d=\"M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z\"/><path d=\"M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8\"/><path d=\"M12 17.5v-11\"/>", "package": "<path d=\"m7.5 4.27 9 5.15\"/><path d=\"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z\"/><path d=\"m3.3 7 8.7 5 8.7-5\"/><path d=\"M12 22V12\"/>", "lock": "<rect width=\"18\" height=\"11\" x=\"3\" y=\"11\" rx=\"2\" ry=\"2\"/><path d=\"M7 11V7a5 5 0 0 1 10 0v4\"/>", "layout-dashboard": "<rect width=\"7\" height=\"9\" x=\"3\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"14\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"9\" x=\"14\" y=\"12\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"3\" y=\"16\" rx=\"1\"/>", "wallet": "<path d=\"M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1\"/><path d=\"M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4\"/>", "clipboard-list": "<rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\" ry=\"1\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"/><path d=\"M12 11h4\"/><path d=\"M12 16h4\"/><path d=\"M8 11h.01\"/><path d=\"M8 16h.01\"/>", "banknote": "<rect width=\"20\" height=\"12\" x=\"2\" y=\"6\" rx=\"2\"/><circle cx=\"12\" cy=\"12\" r=\"2\"/><path d=\"M6 12h.01M18 12h.01\"/>", "smartphone": "<rect width=\"14\" height=\"20\" x=\"5\" y=\"2\" rx=\"2\" ry=\"2\"/><path d=\"M12 18h.01\"/>", "users": "<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/>", "printer": "<path d=\"M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2\"/><path d=\"M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6\"/><rect x=\"6\" y=\"14\" width=\"12\" height=\"8\" rx=\"1\"/>", "log-out": "<path d=\"M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4\"/><polyline points=\"16 17 21 12 16 7\"/><line x1=\"21\" x2=\"9\" y1=\"12\" y2=\"12\"/>", "check": "<path d=\"M20 6 9 17l-5-5\"/>", "upload": "<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"17 8 12 3 7 8\"/><line x1=\"12\" x2=\"12\" y1=\"3\" y2=\"15\"/>", "plus": "<path d=\"M5 12h14\"/><path d=\"M12 5v14\"/>", "minus": "<path d=\"M5 12h14\"/>", "store": "<path d=\"m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7\"/><path d=\"M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8\"/><path d=\"M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4\"/><path d=\"M2 7h20\"/>", "trending-up": "<polyline points=\"22 7 13.5 15.5 8.5 10.5 2 17\"/><polyline points=\"16 7 22 7 22 13\"/>", "triangle-alert": "<path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3\"/><path d=\"M12 9v4\"/><path d=\"M12 17h.01\"/>", "clock": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><polyline points=\"12 6 12 12 16 14\"/>", "download": "<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"7 10 12 15 17 10\"/><line x1=\"12\" x2=\"12\" y1=\"15\" y2=\"3\"/>", "truck": "<path d=\"M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2\"/><path d=\"M15 18H9\"/><path d=\"M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14\"/><circle cx=\"17\" cy=\"18\" r=\"2\"/><circle cx=\"7\" cy=\"18\" r=\"2\"/>", "file-text":"<path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"/><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"/><path d=\"M10 9H8\"/><path d=\"M16 13H8\"/><path d=\"M16 17H8\"/>","undo-2":"<path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11\"/>","file-spreadsheet": "<path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"/><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"/><path d=\"M8 13h2\"/><path d=\"M14 13h2\"/><path d=\"M8 17h2\"/><path d=\"M14 17h2\"/>"};
 const ICOL={"arrow-left-right":"purple","key-round":"purple","shopping-cart": "green", "receipt": "blue", "package": "orange", "lock": "purple", "layout-dashboard": "blue", "wallet": "teal", "clipboard-list": "blue", "banknote": "green", "smartphone": "blue", "users": "orange", "printer": "blue", "log-out": "red", "upload": "teal", "store": "green", "trending-up": "blue", "triangle-alert": "orange", "clock": "orange", "download": "blue", "truck": "orange", "file-spreadsheet": "green"};
 const ic=(n,sz)=>ICONS[n]?'<svg class="ic" viewBox="0 0 24 24" width="'+(sz||18)+'" height="'+(sz||18)+'" aria-hidden="true"'+(ICOL[n]?' style="color:var(--ic-'+ICOL[n]+')"':'')+'>'+ICONS[n]+'</svg>':'';
 const fmt=n=>Number(n||0).toLocaleString('fr-FR').replace(/[  ]/g,' ')+' F';
@@ -222,7 +223,7 @@ function paintNet(){
 }
 function shell(tabs,body){
   const who=me.role==='cashier'?STORES[me.store_id]:me.role==='central'?STORES.CEN:'Direction';
-  return `<header class="top"><img class="hl" src="logo.png" alt="Minane"><h1>${esc(who)}<small>${esc(me.full_name)}</small></h1><span id="net" class="pill ok">En ligne</span><button class="pill" id="pw" style="border:0;color:#fff">${ic('key-round',14)}Mot de passe</button><button class="pill" id="lo" style="border:0;color:#fff">${ic('log-out',14)}Quitter</button></header>
+  return `<header class="top"><img class="hl" src="logo.png" alt="Minane"><h1>${esc(who)}<small>${esc(me.full_name)}</small></h1><span id="net" class="pill ok">En ligne</span><button class="pill" id="pw" style="border:0;color:#fff">${ic('key-round',14)}<span class="lbl">Mot de passe</span></button><button class="pill" id="lo" style="border:0;color:#fff">${ic('log-out',14)}<span class="lbl">Quitter</span></button></header>
   <nav class="tabs">${tabs.map(([k,l])=>`<button data-tab="${k}" class="${S.tab===k?'on':''}">${l}</button>`).join('')}</nav><main>${body}</main>`;
 }
 function bindShell(){
@@ -456,10 +457,12 @@ function subscribeRT(){
 }
 function drawDirector(){
   const central=me.role==='central';
-  const tabs=central?[['stock',ic('store')+'Stock du Central'],['central',ic('file-text')+'Factures aux magasins']]:[['apercu',ic('layout-dashboard')+'Tableau de bord'],['stock',ic('package')+'Stock'],['achats',ic('arrow-left-right')+'Achats / transferts'],['central',ic('store')+'Magasin Central'+(pendingVers()?` <span class="badge b-bad">${pendingVers()}</span>`:'')],['depenses',ic('wallet')+'Dépenses'],['import',ic('clipboard-list')+'Inventaire (import)']];
+  const tabs=central?[['stock',ic('store')+'Stock du Central'],['central',ic('file-text')+'Factures aux magasins']]:[['apercu',ic('layout-dashboard')+'Tableau de bord'],['stock',ic('package')+'Stock'],['achats',ic('arrow-left-right')+'Achats / transferts'],['central',ic('store')+'Magasin Central'+(pendingVers()?` <span class="badge b-bad">${pendingVers()}</span>`:'')],['bons',ic('clipboard-list')+'Commandes / BL'],['depenses',ic('wallet')+'Dépenses'],['retours',ic('undo-2')+'Retours'],['import',ic('clipboard-list')+'Inventaire (import)']];
   let b='';
   if(S.tab==='apercu')b=dirOverview();
   else if(S.tab==='central')b=dirCentral();
+  else if(S.tab==='bons')b=dirBons();
+  else if(S.tab==='retours')b=dirRetours();
   else if(S.tab==='depenses')b=dirDepenses();
   else if(S.tab==='achats')b=dirAchats();
   else if(S.tab==='stock')b=dirStock();
@@ -467,6 +470,8 @@ function drawDirector(){
   $('#app').innerHTML=shell(tabs,b);
   if(S.tab==='apercu')bindOverview();
   if(S.tab==='central')bindCentral();
+  if(S.tab==='bons')bindBons();
+  if(S.tab==='retours')bindRetours();
   if(S.tab==='depenses')bindDepenses();
   if(S.tab==='achats')bindAchats();
   if(S.tab==='stock')bindDirStock();
@@ -704,7 +709,7 @@ function bindAchats(){
 }
 function dirVers(){
   return `<div class="card"><h2>${ic('wallet')}Versements des magasins</h2><table><tr><th>Date</th><th>Magasin</th><th>Mode</th><th>Référence</th><th class="n">Montant</th><th>Statut</th><th></th></tr>
-  ${D.vers.map(v=>`<tr><td>${dtFr(v.created_at)}</td><td>${esc(STORES[v.store_id]||v.store_id)}</td><td>${v.method==='wave'?'Wave':v.method==='om'?'OM':'Espèces'}</td><td>${esc(v.reference||'')}</td><td class="n">${fmt(v.amount)}</td><td><span class="badge ${v.status==='confirmed'?'b-ok':v.status==='rejected'?'b-bad':'b-wait'}">${v.status==='confirmed'?'confirmé':v.status==='rejected'?'refusé':'à confirmer'}</span></td><td class="n">${v.status==='pending'?`<button class="btn sm" data-c="${v.id}">${ic('check',14)}Confirmer</button> <button class="btn sm sec" data-r="${v.id}">Refuser</button>`:''}</td></tr>`).join('')||'<tr><td colspan="7" class="mu">Aucun versement.</td></tr>'}</table></div>`;
+  ${D.vers.map(v=>`<tr><td>${dtFr(v.created_at)}</td><td>${esc(vwho(v))}</td><td>${v.method==='wave'?'Wave':v.method==='om'?'OM':'Espèces'}</td><td>${esc(v.reference||'')}</td><td class="n">${fmt(v.amount)}</td><td><span class="badge ${v.status==='confirmed'?'b-ok':v.status==='rejected'?'b-bad':'b-wait'}">${v.status==='confirmed'?'confirmé':v.status==='rejected'?'refusé':'à confirmer'}</span></td><td class="n">${v.status==='pending'?`<button class="btn sm" data-c="${v.id}">${ic('check',14)}Confirmer</button> <button class="btn sm sec" data-r="${v.id}">Refuser</button>`:''}</td></tr>`).join('')||'<tr><td colspan="7" class="mu">Aucun versement.</td></tr>'}</table></div>`;
 }
 function bindVers(){
   const act=async(id,st)=>{
@@ -715,36 +720,41 @@ function bindVers(){
 }
 
 /* ---------- MAGASIN CENTRAL : factures, règlements, situation ---------- */
-const CV={lines:[],to:'SAN'};let CINV=[],CLOADED=false;
+const CV={lines:[],to:'SAN',client:'',phone:''};let CINV=[],CLOADED=false,CCLI=[];
+const vwho=v=>v.client_name?v.client_name+' (grossiste)':(STORES[v.store_id]||v.store_id);
+const iwho=i=>i.client_name?i.client_name+' (grossiste)':STORES[i.store_id];
 async function loadCentral(){
   CLOADED=true;
-  try{CINV=await q(sb.from('central_invoices').select('*,central_invoice_items(*)').order('issued_at',{ascending:false}).limit(100));D.cbal=await q(sb.from('central_balance').select('*'));await loadDirStock('CEN')}catch(e){toast('Chargement impossible : '+(e.message||e))}
+  try{CINV=await q(sb.from('central_invoices').select('*,central_invoice_items(*)').order('issued_at',{ascending:false}).limit(100));D.cbal=await q(sb.from('central_balance').select('*'));CCLI=await q(sb.from('central_clients').select('*'));await loadDirStock('CEN')}catch(e){toast('Chargement impossible : '+(e.message||e))}
 }
 const invPaid=(st)=>{const b=D.cbal.find(x=>x.store_id===st)||{invoiced:0,paid:0};return b};
 function dirCentral(){
   const isC=me.role==='central',cen=D.stock.CEN||[],aname=id=>(D.arts.find(a=>a.id===id)||{name:id}).name;
   const pcs=cen.reduce((t,r)=>t+Math.max(0,r.qty),0),due=D.cbal.reduce((t,b)=>t+Math.max(0,b.invoiced-b.paid),0);
-  const stores=SHOPS.map(k=>`<option value="${k}" ${CV.to===k?'selected':''}>${esc(STORES[k])}</option>`).join('');
+  const stores=SHOPS.map(k=>`<option value="${k}" ${CV.to===k?'selected':''}>${esc(STORES[k])}</option>`).join('')+`<option value="G" ${CV.to==='G'?'selected':''}>Grossiste (client)</option>`;
+  const known=[...new Set(CCLI.map(c=>c.client_name))].map(n=>`<option value="${esc(n)}">`).join('');
   const arts=D.arts.filter(a=>cen.some(r=>r.article_id===a.id&&r.qty>0)).map(a=>`<option value="${esc(a.id)}">${esc(a.name)}</option>`).join('');
   const tot=CV.lines.reduce((t,l)=>t+l.qty*l.price,0);
   const sit=SHOPS.map(k=>{const b=invPaid(k),r=b.invoiced-b.paid,li=CINV.filter(i=>i.store_id===k)[0];
     return `<tr><td>${dot(k)}<b>${esc(STORES[k])}</b>${li?`<div class="mu" style="font-size:12px">Dernière facture : ${dtFr(li.issued_at)}</div>`:''}</td><td class="n">${fmt(b.invoiced)}</td><td class="n">${fmt(b.paid)}</td><td class="n"><b style="color:${r>0?'var(--rd)':'inherit'}">${fmt(Math.max(0,r))}</b></td><td class="n">${r<0?'<b style="color:var(--g)">'+fmt(-r)+'</b>':'—'}</td></tr>`}).join('');
   const paidOf=i=>{return null};
-  const inv=CINV.slice(0,25).map(i=>`<tr><td><b>${esc(i.invoice_no)}</b></td><td>${dtFr(i.issued_at)}</td><td>${dot(i.store_id)}${esc(STORES[i.store_id])}</td><td class="n">${(i.central_invoice_items||[]).reduce((t,x)=>t+x.qty,0)}</td><td class="n"><b>${fmt(i.total)}</b></td><td class="n"><button class="btn sm sec" data-pi="${i.id}">${ic('printer',16)}Imprimer</button></td></tr>`).join('')||'<tr><td colspan="6" class="mu">Aucune facture pour le moment.</td></tr>';
-  const reg=D.vers.filter(v=>v.status==='confirmed').slice(0,10).map(v=>`<tr><td>${dtFr(v.confirmed_at||v.created_at)}</td><td>${esc(STORES[v.store_id])}</td><td>${v.method==='wave'?'Wave':v.method==='om'?'OM':'Espèces'}${v.reference?' · '+esc(v.reference):''}</td><td class="n">${fmt(v.amount)}</td></tr>`).join('')||'<tr><td colspan="4" class="mu">Aucun règlement.</td></tr>';
+  const inv=CINV.slice(0,25).map(i=>`<tr><td><b>${esc(i.invoice_no)}</b></td><td>${dtFr(i.issued_at)}</td><td>${i.store_id?dot(i.store_id):''}${esc(iwho(i))}</td><td class="n">${(i.central_invoice_items||[]).reduce((t,x)=>t+x.qty,0)}</td><td class="n"><b>${fmt(i.total)}</b></td><td class="n"><button class="btn sm sec" data-pi="${i.id}">${ic('printer',16)}Imprimer</button></td></tr>`).join('')||'<tr><td colspan="6" class="mu">Aucune facture pour le moment.</td></tr>';
+  const reg=D.vers.filter(v=>v.status==='confirmed').slice(0,10).map(v=>`<tr><td>${dtFr(v.confirmed_at||v.created_at)}</td><td>${esc(vwho(v))}</td><td>${v.method==='wave'?'Wave':v.method==='om'?'OM':'Espèces'}${v.reference?' · '+esc(v.reference):''}</td><td class="n">${fmt(v.amount)}</td></tr>`).join('')||'<tr><td colspan="4" class="mu">Aucun règlement.</td></tr>';
   const lines=CV.lines.length?`<table><thead><tr><th>Article</th><th class="n">Qté</th><th class="n">Prix</th><th class="n">Montant</th><th></th></tr></thead><tbody>${CV.lines.map((l,i)=>`<tr><td>${esc(aname(l.article_id))}${[l.size&&' · P'+l.size,l.color&&' · '+l.color].filter(Boolean).join('')}</td><td class="n">${l.qty}</td><td class="n">${fmt(l.price)}</td><td class="n">${fmt(l.qty*l.price)}</td><td><button class="btn sm sec" data-rm="${i}">×</button></td></tr>`).join('')}<tr><td colspan="3" class="n"><b>Total</b></td><td class="n"><b>${fmt(tot)}</b></td><td></td></tr></tbody></table>`:'<p class="mu" style="font-size:13px">Aucune ligne. Choisissez un article puis « Ajouter la ligne ».</p>';
   return `<div class="kpi"><div><small>${ic('package')}Stock du Central</small><b>${pcs}</b><small>pièces</small></div><div><small>${ic('store')}Dû par les magasins</small><b style="color:${due?'var(--rd)':'inherit'}">${fmt(due)}</b><small>factures moins versements confirmés</small></div><div><small>${ic('wallet')}Versements à confirmer</small><b>${pendingVers()}</b><small>envoyés par les caissiers</small></div></div>
   ${isC?'':dirVers()}
   <div class="card"><h2>${ic('store')}Situation par magasin <small class="mu" style="font-weight:400">facturé par le Central, réglé, reste dû</small></h2><div class="tw"><table><thead><tr><th>Magasin</th><th class="n">Facturé</th><th class="n">Réglé</th><th class="n">Reste dû</th><th class="n">Avance</th></tr></thead><tbody>${sit}</tbody></table></div></div>
+  ${CCLI.length?`<div class="card"><h2>${ic('users')}Grossistes <small class="mu" style="font-weight:400">facturé, réglé, reste dû</small></h2><div class="tw"><table><thead><tr><th>Grossiste</th><th class="n">Facturé</th><th class="n">Réglé</th><th class="n">Reste dû</th></tr></thead><tbody>${CCLI.map(c=>`<tr><td><b>${esc(c.client_name)}</b></td><td class="n">${fmt(c.invoiced)}</td><td class="n">${fmt(c.paid)}</td><td class="n"><b style="color:${c.invoiced>c.paid?'var(--rd)':'inherit'}">${fmt(Math.max(0,c.invoiced-c.paid))}</b></td></tr>`).join('')}</tbody></table></div></div>`:''}
   <div class="grid2" style="grid-template-columns:1fr 1fr"><div class="card"><h2>${ic('file-text')}Nouvelle facture <small class="mu" style="font-weight:400">prix de gros</small></h2>
   <label>Destinataire</label><select id="cto">${stores}</select>
+  <div id="cgr" style="display:${CV.to==='G'?'block':'none'}"><div class="row"><div style="flex:2;min-width:150px"><label>Nom du grossiste</label><input id="ccl" list="ccll" value="${esc(CV.client)}" placeholder="Nom ou société"><datalist id="ccll">${known}</datalist></div><div style="flex:1;min-width:120px"><label>Téléphone</label><input id="cph" inputmode="tel" value="${esc(CV.phone)}"></div></div></div>
   <label>Article</label><select id="cta"><option value="">— choisir —</option>${arts}</select>
   <label>Pointure / couleur</label><select id="ctc"></select>
   <div class="row"><div style="flex:1"><label>Quantité</label><input id="ctq" type="number" min="1" value="1"></div><div style="flex:1"><label>Prix de gros (F)</label><input id="ctp" type="number" min="0"></div></div>
   <button class="btn sec" id="cadd" style="margin-top:10px">${ic('plus')}Ajouter la ligne</button><div style="margin-top:12px">${lines}</div>
   <div class="row"><div style="flex:1"><label>Acompte reçu (F)</label><input id="cac" type="number" min="0" value="0"></div><div style="flex:1"><label>Mode</label><select id="cmd"><option value="cash">Espèces</option><option value="wave">Wave</option><option value="om">Orange Money</option></select></div></div>
   <button class="btn big" id="cgo" style="margin-top:12px">${ic('check',20)}Établir la facture et livrer</button><div class="err" id="cerr"></div></div>
-  ${isC?'<div class="card"><h2>Règlements</h2><div class="tw"><table><tbody>'+reg+'</tbody></table></div></div>':`<div><div class="card"><h2>${ic('wallet')}Règlement reçu</h2><label>Magasin payeur</label><select id="rps">${SHOPS.map(k=>{const b=invPaid(k),r=b.invoiced-b.paid;return `<option value="${k}">${esc(STORES[k])} · dû ${fmt(Math.max(0,r))}</option>`}).join('')}</select>
+  ${isC?'<div class="card"><h2>Règlements</h2><div class="tw"><table><tbody>'+reg+'</tbody></table></div></div>':`<div><div class="card"><h2>${ic('wallet')}Règlement reçu</h2><label>Payeur</label><select id="rps">${SHOPS.map(k=>{const b=invPaid(k),r=b.invoiced-b.paid;return `<option value="${k}">${esc(STORES[k])} · dû ${fmt(Math.max(0,r))}</option>`}).join('')}${CCLI.map(c=>`<option value="g:${esc(c.client_name)}">${esc(c.client_name)} (grossiste) · dû ${fmt(Math.max(0,c.invoiced-c.paid))}</option>`).join('')}</select>
   <div class="row"><div style="flex:1"><label>Montant (F)</label><input id="rpa" type="number" min="1"></div><div style="flex:1"><label>Mode</label><select id="rpm"><option value="cash">Espèces</option><option value="wave">Wave</option><option value="om">Orange Money</option></select></div></div>
   <button class="btn big" id="rpg" style="margin-top:12px">${ic('check',20)}Enregistrer le règlement</button><div class="err" id="rperr"></div></div>
   <div class="card"><h2>Derniers règlements</h2><div class="tw"><table><tbody>${reg}</tbody></table></div></div></div>`}</div>
@@ -752,14 +762,14 @@ function dirCentral(){
 }
 function printInvoice(i){
   const aname=id=>(D.arts.find(a=>a.id===id)||{name:id}).name,items=i.central_invoice_items||[];
-  const b=invPaid(i.store_id);
+  const b=i.store_id?invPaid(i.store_id):(CCLI.find(c=>c.client_name===i.client_name)||{invoiced:0,paid:0});
   const rows=items.map(x=>`<tr><td>${esc(aname(x.article_id))}${[x.size&&' · P'+x.size,x.color&&' · '+x.color].filter(Boolean).join('')}</td><td class="r">${x.qty}</td><td class="r">${fmt(x.unit_price)}</td><td class="r">${fmt(x.qty*x.unit_price)}</td></tr>`).join('');
   const html=`<!doctype html><meta charset="utf-8"><title>${esc(i.invoice_no)}</title><style>body{font:14px Arial,sans-serif;margin:18mm;color:#111}table{border-collapse:collapse;width:100%;margin-top:18px}th,td{border:1px solid #bbb;padding:7px 9px;text-align:left}th{background:#f1f1f1}.r{text-align:right}.h{display:flex;justify-content:space-between;align-items:flex-start}.box{border:1px solid #bbb;padding:10px 14px}.sig{display:flex;justify-content:space-between;margin-top:60px}</style>
   <div class="h"><div><img src="${location.origin}/logo.png" style="max-height:26mm;max-width:80mm"><br><b>MINANE SHOP — Magasin Central</b></div><div class="box"><b style="font-size:18px">FACTURE ${esc(i.invoice_no)}</b><br>${dtFr(i.issued_at)}</div></div>
-  <p><b>Destinataire :</b> ${esc(STORES[i.store_id])}</p>
+  <p><b>Destinataire :</b> ${esc(iwho(i))}${i.client_phone?' · Tél. '+esc(i.client_phone):''}</p>
   <table><thead><tr><th>Désignation</th><th class="r">Qté</th><th class="r">Prix unitaire</th><th class="r">Montant</th></tr></thead><tbody>${rows}<tr><td colspan="3" class="r"><b>TOTAL</b></td><td class="r"><b>${fmt(i.total)} </b></td></tr></tbody></table>
   <p>Situation du magasin à ce jour : facturé ${fmt(b.invoiced)} · réglé ${fmt(b.paid)} · reste dû <b>${fmt(Math.max(0,b.invoiced-b.paid))}</b></p>
-  <div class="sig"><div>Le Magasin Central</div><div>Le Magasin (reçu conforme)</div></div><script>onload=()=>setTimeout(()=>print(),400)<\/script>`;
+  <div class="sig"><div>Le Magasin Central</div><div>${i.store_id?'Le Magasin':'Le client'} (reçu conforme)</div></div><script>onload=()=>setTimeout(()=>print(),400)<\/script>`;
   const w=window.open('','_blank');if(!w){toast('Autorisez les fenêtres pour imprimer.');return}w.document.write(html);w.document.close();
 }
 function bindCentral(){
@@ -770,7 +780,7 @@ function bindCentral(){
   const upd=()=>{const id=$('#cta').value;rows=cen.filter(r=>r.article_id===id&&r.qty>0);
     $('#ctc').innerHTML=rows.length?rows.map((r,i)=>`<option value="${i}">${esc(comboLabel(r))} — ${r.qty} dispo</option>`).join(''):'<option value="">—</option>';
     const a=art(id);$('#ctp').value=a?(a.wholesale_price??a.price??''):''};
-  $('#cta').onchange=upd;$('#cto').onchange=()=>{CV.to=$('#cto').value};
+  $('#cta').onchange=upd;$('#cto').onchange=()=>{CV.to=$('#cto').value;$('#cgr').style.display=CV.to==='G'?'block':'none'};$('#ccl').oninput=()=>{CV.client=$('#ccl').value};$('#cph').oninput=()=>{CV.phone=$('#cph').value};
   document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{CV.lines.splice(+b.dataset.rm,1);draw()});
   $('#cadd').onclick=()=>{
     const r=rows[+$('#ctc').value],qty=Math.round(+$('#ctq').value||0),price=Math.round(+$('#ctp').value);
@@ -785,19 +795,150 @@ function bindCentral(){
     if(!CV.lines.length){$('#cerr').textContent='Ajoutez au moins une ligne.';return}
     const paid=Math.round(+$('#cac').value||0),tot=CV.lines.reduce((t,l)=>t+l.qty*l.price,0);
     if(paid<0||paid>tot){$('#cerr').textContent='Acompte invalide (maximum '+fmt(tot)+').';return}
+    if(CV.to==='G'&&!CV.client.trim()){$('#cerr').textContent='Saisissez le nom du grossiste.';return}
     $('#cgo').disabled=true;
     try{
-      const no=await q(sb.rpc('record_invoice',{p_store:CV.to,p_items:CV.lines.map(l=>({article_id:l.article_id,size:l.size,color:l.color,qty:l.qty,unit_price:l.price})),p_paid:paid,p_method:$('#cmd').value}));
+      const no=await q(sb.rpc('record_central_sale',{p_store:CV.to==='G'?null:CV.to,p_client:CV.to==='G'?CV.client:null,p_phone:CV.to==='G'?CV.phone:null,p_items:CV.lines.map(l=>({article_id:l.article_id,size:l.size,color:l.color,qty:l.qty,unit_price:l.price})),p_paid:paid,p_method:$('#cmd').value}));
       const touched=[...new Set(CV.lines.map(l=>l.article_id))];
       if(me.role!=='central')for(const id of touched){const l=CV.lines.find(x=>x.article_id===id);try{await q(sb.from('articles').update({wholesale_price:l.price}).eq('id',id).select('id'))}catch(e){}}
-      CV.lines=[];toast('Facture '+no+' établie : '+fmt(tot));D.stock[CV.to]=null;
+      CV.lines=[];toast('Facture '+no+' établie : '+fmt(tot));D.stock[CV.to]=null;if(CV.to==='G'){CV.client='';CV.phone=''}
       await Promise.all([loadCentral(),me.role==='central'?0:loadDirector()]);draw();
     }catch(e){$('#cerr').textContent='Erreur : '+(e.message||e);$('#cgo').disabled=false}
   };
   document.querySelectorAll('[data-pi]').forEach(b=>b.onclick=()=>printInvoice(CINV.find(x=>x.id===b.dataset.pi)));
   const rg=$('#rpg');if(rg)rg.onclick=async()=>{
     const a=Math.round(+$('#rpa').value||0);if(!(a>0)){$('#rperr').textContent='Saisissez le montant reçu.';return}
-    try{await q(sb.from('versements').insert({store_id:$('#rps').value,day:dayStr(0),amount:a,method:$('#rpm').value,reference:'Règlement direct',status:'confirmed',confirmed_by:me.id,confirmed_at:new Date().toISOString()}).select('id'));toast('Règlement de '+fmt(a)+' enregistré');await loadDirector();draw()}catch(e){$('#rperr').textContent='Erreur : '+(e.message||e)}
+    try{await q(sb.from('versements').insert({...(($('#rps').value||'').startsWith('g:')?{client_name:$('#rps').value.slice(2)}:{store_id:$('#rps').value}),day:dayStr(0),amount:a,method:$('#rpm').value,reference:'Règlement direct',status:'confirmed',confirmed_by:me.id,confirmed_at:new Date().toISOString()}).select('id'));toast('Règlement de '+fmt(a)+' enregistré');await Promise.all([loadDirector(),loadCentral()]);draw()}catch(e){$('#rperr').textContent='Erreur : '+(e.message||e)}
+  };
+}
+
+/* ---------- COMMANDES / BL ---------- */
+const BC={lines:[],rcv:null,f:{store:'SAN',sup:'',phone:'',due:'',note:''}};let BONS=[],BONS_LOADED=false;
+async function loadBons(){
+  BONS_LOADED=true;
+  try{BONS=await q(sb.from('purchase_orders').select('*,purchase_order_items(*),deliveries(*,delivery_items(*))').order('created_at',{ascending:false}).limit(100))}catch(e){toast('Chargement impossible : '+(e.message||e))}
+}
+const vkey=x=>x.article_id+'|'+(x.size||'')+'|'+(x.color||'');
+const bcQty=o=>o.purchase_order_items.reduce((t,x)=>t+x.qty,0);
+const bcRecv=o=>o.deliveries.reduce((t,d)=>t+d.delivery_items.reduce((u,x)=>u+x.qty,0),0);
+const bcTotal=o=>o.purchase_order_items.reduce((t,x)=>t+x.qty*x.unit_cost,0);
+const bcLeft=(o,x)=>x.qty-o.deliveries.reduce((t,d)=>t+d.delivery_items.filter(y=>vkey(y)===vkey(x)).reduce((u,y)=>u+y.qty,0),0);
+const bcState=o=>o.cancelled?['b-bad','Annulé']:bcRecv(o)>=bcQty(o)?['b-ok','Livré']:bcRecv(o)>0?['b-wait','Partiel']:['b-gr','En attente'];
+const vlabel=x=>[x.size&&'P'+x.size,x.color].filter(Boolean).join(' ');
+const anameD=id=>(D.arts.find(a=>a.id===id)||{name:id}).name;
+function openDoc(html,title,w){
+  w=w||window.open('','_blank');if(!w){toast('Autorisez les fenêtres pour imprimer.');return}
+  w.document.write(`<!doctype html><meta charset="utf-8"><title>${esc(title)}</title><style>body{font:14px Arial,sans-serif;margin:16mm;color:#111}table{border-collapse:collapse;width:100%;margin-top:16px}th,td{border:1px solid #bbb;padding:7px 9px;text-align:left}th{background:#f1f1f1}.r{text-align:right}.h{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}.box{border:1px solid #bbb;padding:10px 14px}.two{display:flex;gap:16px;margin-top:16px}.two .box{flex:1}.sig{display:flex;justify-content:space-between;margin-top:60px}.ft{margin-top:30px;color:#777;font-size:11px}</style>${html}<script>onload=()=>setTimeout(()=>print(),400)<\/script>`);w.document.close();
+}
+function docHtml(o,bl){
+  const isBl=!!bl,head=`<div class="h"><div><img src="${location.origin}/logo.png" style="max-height:26mm;max-width:80mm"><br><b>MINANE SHOP</b><br>${esc(STORES[o.store_id])}</div><div class="box"><b style="font-size:18px">${isBl?'BON DE LIVRAISON':'BON DE COMMANDE'}</b><br>N° <b>${esc(isBl?bl.bl_no:o.po_no)}</b><br>Date : ${dtFr(isBl?bl.created_at:o.created_at)}${!isBl&&o.due_date?'<br>Livraison souhaitée : '+dmyFull(o.due_date):''}${isBl?'<br>Bon de commande : '+esc(o.po_no):''}</div></div>
+  <div class="two"><div class="box"><b>Fournisseur</b><br>${esc(o.supplier)}${o.phone?'<br>Tél. '+esc(o.phone):''}</div><div class="box"><b>Livraison à</b><br>${esc(STORES[o.store_id])}</div></div>`;
+  let body,foot;
+  if(!isBl){
+    body=`<table><thead><tr><th>N°</th><th>Désignation</th><th class="r">Qté</th><th class="r">Prix unitaire</th><th class="r">Montant</th></tr></thead><tbody>${o.purchase_order_items.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(anameD(x.article_id))} ${esc(vlabel(x))}</td><td class="r">${x.qty}</td><td class="r">${fmt(x.unit_cost)}</td><td class="r">${fmt(x.qty*x.unit_cost)}</td></tr>`).join('')}<tr><td colspan="4" class="r"><b>TOTAL</b></td><td class="r"><b>${fmt(bcTotal(o))}</b></td></tr></tbody></table>`;
+    foot='<div class="sig"><div>Le Directeur<br>Bassirou DIOUF</div><div>Le fournisseur<br>(cachet et signature)</div></div>';
+  }else{
+    const prior=o.deliveries.filter(d=>d.created_at<=bl.created_at);
+    body=`<table><thead><tr><th>N°</th><th>Désignation</th><th class="r">Commandé</th><th class="r">Livré (ce BL)</th><th class="r">Reste à livrer</th></tr></thead><tbody>${bl.delivery_items.map((x,i)=>{const ord=o.purchase_order_items.filter(y=>vkey(y)===vkey(x)).reduce((t,y)=>t+y.qty,0),cum=prior.reduce((t,d)=>t+d.delivery_items.filter(y=>vkey(y)===vkey(x)).reduce((u,y)=>u+y.qty,0),0);return `<tr><td>${i+1}</td><td>${esc(anameD(x.article_id))} ${esc(vlabel(x))}</td><td class="r">${ord}</td><td class="r">${x.qty}</td><td class="r">${ord-cum}</td></tr>`}).join('')}</tbody></table>`;
+    foot='<div class="sig"><div>Le livreur<br>(nom et signature)</div><div>Réceptionné par<br>la Direction</div></div>';
+  }
+  return head+body+(o.note?`<p><b>Note :</b> ${esc(o.note)}</p>`:'')+foot+`<div class="ft">Document édité le ${dtFr(new Date().toISOString())} · MINANE SHOP</div>`;
+}
+function dirBons(){
+  const so=SHOPS.map(k=>`<option value="${k}">${esc(STORES[k])}</option>`).join(''),ao=D.arts.map(a=>`<option value="${esc(a.id)}">${esc(a.name)}</option>`).join('');
+  const sups=[...new Set(BONS.map(o=>o.supplier))].map(x=>`<option value="${esc(x)}">`).join('');
+  const rc=BC.rcv&&BONS.find(o=>o.id===BC.rcv);
+  const rcv=rc?`<div class="card" style="border-color:var(--g2)"><h2>${ic('truck')}Réception du ${esc(rc.po_no)} <small class="mu" style="font-weight:400">${esc(rc.supplier)} → ${esc(STORES[rc.store_id])}</small></h2><div class="tw"><table><thead><tr><th>Article</th><th class="n">Commandé</th><th class="n">Reste</th><th class="n">Reçu aujourd’hui</th></tr></thead><tbody>${rc.purchase_order_items.map(x=>{const l=bcLeft(rc,x);return `<tr><td>${esc(anameD(x.article_id))} ${esc(vlabel(x))}</td><td class="n">${x.qty}</td><td class="n">${l}</td><td class="n"><input type="number" min="0" max="${l}" value="${l}" data-rq="${x.id}" style="width:80px;text-align:right" ${l?'':'disabled'}></td></tr>`}).join('')}</tbody></table></div>
+  <div class="row" style="margin-top:12px"><button class="btn" id="rvp">${ic('printer',18)}Enregistrer et imprimer le BL</button><button class="btn sec" id="rvv">Enregistrer</button><button class="btn sec" id="rvc">Annuler</button></div><div class="err" id="rverr"></div><p class="mu" style="font-size:12.5px">La réception met le stock du magasin à jour et enregistre l’achat dans les dépenses.</p></div>`:'';
+  const lines=BC.lines.length?`<div class="tw"><table><thead><tr><th>Article</th><th class="n">Qté</th><th class="n">Prix</th><th class="n">Montant</th><th></th></tr></thead><tbody>${BC.lines.map((l,i)=>`<tr><td>${esc(anameD(l.article_id))} ${esc(vlabel(l))}</td><td class="n">${l.qty}</td><td class="n">${fmt(l.unit_cost)}</td><td class="n">${fmt(l.qty*l.unit_cost)}</td><td><button class="btn sm sec" data-bx="${i}">×</button></td></tr>`).join('')}</tbody></table></div>`:'';
+  const rows=BONS.map(o=>{const st=bcState(o),open=!o.cancelled&&bcRecv(o)<bcQty(o);return `<tr><td><b>${esc(o.po_no)}</b></td><td>${dtFr(o.created_at)}</td><td>${esc(SHORT[o.store_id])}</td><td>${esc(o.supplier)}</td><td class="n">${bcRecv(o)} / ${bcQty(o)}</td><td class="n">${fmt(bcTotal(o))}</td><td><span class="badge ${st[0]}">${st[1]}</span></td><td style="white-space:nowrap"><button class="btn sm sec" data-pbc="${o.id}">${ic('printer',15)}BC</button> ${open?`<button class="btn sm" data-rc="${o.id}">Réceptionner</button> <button class="btn sm sec" data-cx="${o.id}">Annuler</button>`:''}</td></tr>`}).join('')||'<tr><td colspan="8" class="mu">Aucun bon de commande.</td></tr>';
+  const bls=BONS.flatMap(o=>o.deliveries.map(d=>({o,d}))).sort((a,b)=>a.d.created_at<b.d.created_at?1:-1).map(({o,d})=>`<tr><td><b>${esc(d.bl_no)}</b></td><td>${dtFr(d.created_at)}</td><td>${esc(o.po_no)}</td><td>${esc(SHORT[o.store_id])}</td><td>${esc(o.supplier)}</td><td class="n">${d.delivery_items.reduce((t,x)=>t+x.qty,0)}</td><td><button class="btn sm sec" data-pbl="${d.id}">${ic('printer',15)}BL</button></td></tr>`).join('')||'<tr><td colspan="7" class="mu">Aucune livraison enregistrée.</td></tr>';
+  return `${rcv}<div class="card"><h2>${ic('clipboard-list')}Nouveau bon de commande</h2>
+  <div class="row"><div style="flex:1;min-width:150px"><label>Magasin à livrer</label><select id="bs">${so.replace(`value="${BC.f.store}"`,`value="${BC.f.store}" selected`)}</select></div><div style="flex:1;min-width:150px"><label>Fournisseur</label><input id="bf" list="bfl" value="${esc(BC.f.sup)}" placeholder="Ex. Ets Diallo Cuir"><datalist id="bfl">${sups}</datalist></div><div style="flex:1;min-width:130px"><label>Téléphone</label><input id="bp" inputmode="tel" value="${esc(BC.f.phone)}"></div><div style="flex:1;min-width:130px"><label>Livraison souhaitée</label><input id="bd" type="date" value="${esc(BC.f.due)}"></div></div>
+  <div style="border-top:1px solid #e3e8e5;margin-top:14px;padding-top:6px"><b>Articles commandés</b></div>
+  <div class="row"><div style="flex:2;min-width:180px"><label>Article</label><select id="ba">${ao}</select></div><div style="flex:1;min-width:90px" id="bzw"><label>Pointure</label><input id="bz" inputmode="numeric"></div><div style="flex:1;min-width:110px" id="bcw"><label>Couleur</label><input id="bk"></div><div style="flex:1;min-width:80px"><label>Quantité</label><input id="bq" type="number" min="1" value="10"></div><div style="flex:1;min-width:110px"><label>Prix d’achat (F)</label><input id="bc" type="number" min="0"></div></div>
+  <button class="btn sec" id="bad" style="margin-top:10px">${ic('plus')}Ajouter la ligne</button><div style="margin-top:10px">${lines}</div>
+  <label>Note (facultatif)</label><input id="bn" value="${esc(BC.f.note)}" placeholder="Ex. livraison en matinée">
+  <button class="btn big" id="bgo" style="margin-top:12px">${ic('check',20)}Créer et imprimer le bon de commande</button><div class="err" id="berr"></div></div>
+  <div class="card"><h2>Bons de commande <small class="mu" style="font-weight:400">${BONS.length}</small></h2><div class="tw"><table><thead><tr><th>N°</th><th>Date</th><th>Magasin</th><th>Fournisseur</th><th class="n">Reçu / commandé</th><th class="n">Total</th><th>État</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>
+  <div class="card"><h2>Bons de livraison (BL) <small class="mu" style="font-weight:400">historique des réceptions</small></h2><div class="tw"><table><thead><tr><th>N°</th><th>Date et heure</th><th>Bon de commande</th><th>Magasin</th><th>Fournisseur</th><th class="n">Pièces</th><th></th></tr></thead><tbody>${bls}</tbody></table></div></div>`;
+}
+function bindBons(){
+  if(!BONS_LOADED)loadBons().then(()=>{if(S.tab==='bons')draw()});
+  const art=id=>D.arts.find(a=>a.id===id);
+  const au=()=>{const a=art($('#ba').value)||{};$('#bzw').style.display=a.has_sizes?'':'none';$('#bcw').style.display=a.has_colors?'':'none';$('#bc').value=a.cost||''};
+  $('#ba').onchange=au;au();
+  [['bs','store'],['bf','sup'],['bp','phone'],['bd','due'],['bn','note']].forEach(([i,k])=>{$('#'+i).oninput=$('#'+i).onchange=()=>{BC.f[k]=$('#'+i).value}});
+  document.querySelectorAll('[data-bx]').forEach(b=>b.onclick=()=>{BC.lines.splice(+b.dataset.bx,1);draw()});
+  $('#bad').onclick=()=>{
+    const a=art($('#ba').value),qty=Math.round(+$('#bq').value||0),cost=Math.round(+$('#bc').value);
+    const size=a.has_sizes?$('#bz').value.trim():'',color=a.has_colors?$('#bk').value.trim():'';
+    if(!(qty>0)||!(cost>=0)){$('#berr').textContent='Quantité ou prix invalide.';return}
+    if((a.has_sizes&&!size)||(a.has_colors&&!color)){$('#berr').textContent='Indiquez la pointure ou la couleur.';return}
+    const ex=BC.lines.find(l=>l.article_id===a.id&&l.size===size&&l.color===color&&l.unit_cost===cost);if(ex)ex.qty+=qty;else BC.lines.push({article_id:a.id,size,color,qty,unit_cost:cost});draw();
+  };
+  $('#bgo').onclick=async()=>{
+    const sup=$('#bf').value.trim();if(!sup){$('#berr').textContent='Indiquez le fournisseur.';return}
+    if(!BC.lines.length){$('#berr').textContent='Ajoutez au moins un article.';return}
+    $('#bgo').disabled=true;const pw=window.open('','_blank');
+    try{
+      const no=await q(sb.rpc('create_order',{p_store:$('#bs').value,p_supplier:sup,p_phone:$('#bp').value,p_note:$('#bn').value,p_due:$('#bd').value||null,p_items:BC.lines}));
+      BC.lines=[];BC.f={store:BC.f.store,sup:'',phone:'',due:'',note:''};await loadBons();toast('Bon de commande '+no+' créé');draw();const o=BONS.find(x=>x.po_no===no);if(o)openDoc(docHtml(o),no,pw);else if(pw)pw.close();
+    }catch(e){if(pw)pw.close();$('#berr').textContent='Erreur : '+(e.message||e);$('#bgo').disabled=false}
+  };
+  document.querySelectorAll('[data-pbc]').forEach(b=>b.onclick=()=>{const o=BONS.find(x=>x.id===b.dataset.pbc);openDoc(docHtml(o),o.po_no)});
+  document.querySelectorAll('[data-pbl]').forEach(b=>b.onclick=()=>{for(const o of BONS){const d=o.deliveries.find(x=>x.id===b.dataset.pbl);if(d){openDoc(docHtml(o,d),d.bl_no);break}}});
+  document.querySelectorAll('[data-rc]').forEach(b=>b.onclick=()=>{BC.rcv=b.dataset.rc;draw();window.scrollTo(0,0)});
+  document.querySelectorAll('[data-cx]').forEach(b=>b.onclick=async()=>{if(!confirm('Annuler ce bon de commande ?'))return;try{await q(sb.from('purchase_orders').update({cancelled:true}).eq('id',b.dataset.cx).select('id'));await loadBons();draw()}catch(e){toast('Erreur : '+e.message)}});
+  const rc=BC.rcv&&BONS.find(o=>o.id===BC.rcv);
+  if(rc){
+    const save=async pr=>{
+      const items=[];document.querySelectorAll('[data-rq]').forEach(i=>{const x=rc.purchase_order_items.find(y=>y.id===i.dataset.rq),n=Math.min(Math.max(0,Math.round(+i.value)||0),bcLeft(rc,x));if(n>0)items.push({article_id:x.article_id,size:x.size,color:x.color,qty:n})});
+      if(!items.length){$('#rverr').textContent='Saisissez au moins une quantité reçue.';return}
+      const pw=pr?window.open('','_blank'):null;
+      try{const no=await q(sb.rpc('record_delivery',{p_order:rc.id,p_items:items}));BC.rcv=null;D.stock={};await Promise.all([loadBons(),loadDirector()]);toast('Livraison '+no+' enregistrée, stock mis à jour');draw();if(pr){const o=BONS.find(x=>x.id===rc.id),d=o.deliveries.find(x=>x.bl_no===no);if(d)openDoc(docHtml(o,d),no,pw);else if(pw)pw.close()}}
+      catch(e){if(pw)pw.close();$('#rverr').textContent='Erreur : '+(e.message||e)}
+    };
+    $('#rvp').onclick=()=>save(true);$('#rvv').onclick=()=>save(false);$('#rvc').onclick=()=>{BC.rcv=null;draw()};
+  }
+}
+
+/* ---------- RETOURS ET AVOIRS ---------- */
+let RETS=[],RSALES=[],RET_LOADED=false;
+async function loadRetours(){
+  RET_LOADED=true;
+  try{
+    const since=new Date(Date.now()-3*864e5).toISOString();
+    [RETS,RSALES]=await Promise.all([q(sb.from('returns').select('*').order('created_at',{ascending:false}).limit(60)),q(sb.from('sales').select('id,store_id,ticket_no,sold_at,total,sale_items(*)').gte('sold_at',since).order('sold_at',{ascending:false}).limit(60))]);
+  }catch(e){toast('Chargement impossible : '+(e.message||e))}
+}
+const retDone=(saleId,x)=>RETS.filter(r=>r.sale_id===saleId&&vkey(r)===vkey(x)).reduce((t,r)=>t+r.qty,0);
+function dirRetours(){
+  const pool=RSALES.map(s=>`<option value="${s.id}">${esc(SHORT[s.store_id])} · ${esc(s.ticket_no)} · ${dtFr(s.sold_at)} · ${fmt(s.total)}</option>`).join('');
+  const rows=RETS.map(r=>`<tr><td>${dtFr(r.created_at)}</td><td><b>${esc(r.return_no)}</b></td><td>${esc(SHORT[r.store_id])}</td><td>${esc(anameD(r.article_id))} ${esc(vlabel(r))} × ${r.qty}</td><td>${esc(r.reason)}</td><td><span class="badge ${r.kind==='avoir'?'b-ok':'b-wait'}">${r.kind==='avoir'?'Avoir':'Remboursement'}</span></td><td class="n">${fmt(r.amount)}</td></tr>`).join('')||'<tr><td colspan="7" class="mu">Aucun retour pour le moment.</td></tr>';
+  const rem=RETS.filter(r=>r.kind==='remboursement').reduce((t,r)=>t+r.amount,0),avo=RETS.filter(r=>r.kind==='avoir').reduce((t,r)=>t+r.amount,0);
+  return `<div class="kpi"><div><small>${ic('undo-2')}Retours enregistrés</small><b>${RETS.length}</b><small>60 derniers</small></div><div><small>${ic('banknote')}Remboursés en espèces</small><b>${fmt(rem)}</b></div><div><small>${ic('receipt')}Avoirs accordés</small><b>${fmt(avo)}</b></div></div>
+  <div class="card"><h2>${ic('undo-2')}Nouveau retour <small class="mu" style="font-weight:400">tickets des 3 derniers jours</small></h2>
+  <label>Ticket d’origine</label><select id="rs">${pool||'<option value="">Aucun ticket récent</option>'}</select>
+  <label>Article</label><select id="ra"></select>
+  <div class="row"><div style="flex:1"><label>Quantité</label><input id="rq" type="number" min="1" value="1"></div><div style="flex:1"><label>Motif</label><select id="rm"><option>Mauvaise taille</option><option>Défaut</option><option>Changement d’avis</option></select></div></div>
+  <label>Traitement</label><select id="rk"><option value="avoir">Avoir</option><option value="remboursement">Remboursement espèces</option></select>
+  <button class="btn big" id="rgo" style="margin-top:12px">${ic('check',20)}Enregistrer le retour</button><div class="err" id="rerr"></div>
+  <p class="mu" style="font-size:12.5px;margin:10px 0 0">L’article retourné revient dans le stock du magasin qui a vendu le ticket.</p></div>
+  <div class="card"><h2>Retours et avoirs</h2><div class="tw"><table><thead><tr><th>Date</th><th>N°</th><th>Magasin</th><th>Article</th><th>Motif</th><th>Type</th><th class="n">Montant</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+}
+function bindRetours(){
+  if(!RET_LOADED)loadRetours().then(()=>{if(S.tab==='retours')draw()});
+  let items=[];
+  const fill=()=>{const s=RSALES.find(x=>x.id===$('#rs').value);items=s?s.sale_items.filter(x=>x.qty-retDone(s.id,x)>0):[];
+    $('#ra').innerHTML=items.length?items.map((x,i)=>`<option value="${i}">${esc(anameD(x.article_id))} ${esc(vlabel(x))} — ${x.qty-retDone(s.id,x)} retournable(s) à ${fmt(x.unit_price)}</option>`).join(''):'<option value="">Rien à retourner</option>'};
+  $('#rs').onchange=fill;fill();
+  $('#rgo').onclick=async()=>{
+    const s=RSALES.find(x=>x.id===$('#rs').value),x=items[+$('#ra').value],qty=Math.round(+$('#rq').value||0);
+    if(!s||!x){$('#rerr').textContent='Choisissez un ticket et un article.';return}
+    const max=x.qty-retDone(s.id,x);if(!(qty>0)||qty>max){$('#rerr').textContent='Quantité invalide (maximum '+max+').';return}
+    try{await q(sb.from('returns').insert({store_id:s.store_id,sale_id:s.id,article_id:x.article_id,size:x.size,color:x.color,qty,amount:qty*x.unit_price,reason:$('#rm').value,kind:$('#rk').value}).select('id'));toast('Retour enregistré, stock mis à jour');D.stock={};await loadRetours();draw()}
+    catch(e){$('#rerr').textContent='Erreur : '+(e.message||e)}
   };
 }
 function dirStock(){
