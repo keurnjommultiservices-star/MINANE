@@ -80,7 +80,7 @@ header.top .pill .ic{margin-right:4px;width:14px;height:14px;vertical-align:-2px
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 'use strict';
-const BUILD='1.5';
+const BUILD='1.6';
 const SB_URL='https://ehnptnwvwshmcaqrupru.supabase.co';
 const SB_KEY='sb_publishable_h3I7whuNEfbnfub_Q0eP6w_e77YMUqn';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
@@ -88,7 +88,7 @@ const STORES={SAN:'MINANE SANDAGA',MIR:'CHRISBELLA SANDAGA',HLM:'HLM 5',TOU:'TOU
 const SHOPS=['SAN','MIR','HLM','TOU','PIK'];
 const $=(s,r=document)=>r.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const ICONS={"arrow-left-right":"<path d=\"M8 3 4 7l4 4\"/><path d=\"M4 7h16\"/><path d=\"m16 21 4-4-4-4\"/><path d=\"M20 17H4\"/>","key-round":"<path d=\"M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z\"/><circle cx=\"16.5\" cy=\"7.5\" r=\".5\" fill=\"currentColor\"/>","shopping-cart": "<circle cx=\"8\" cy=\"21\" r=\"1\"/><circle cx=\"19\" cy=\"21\" r=\"1\"/><path d=\"M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12\"/>", "receipt": "<path d=\"M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z\"/><path d=\"M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8\"/><path d=\"M12 17.5v-11\"/>", "package": "<path d=\"m7.5 4.27 9 5.15\"/><path d=\"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z\"/><path d=\"m3.3 7 8.7 5 8.7-5\"/><path d=\"M12 22V12\"/>", "lock": "<rect width=\"18\" height=\"11\" x=\"3\" y=\"11\" rx=\"2\" ry=\"2\"/><path d=\"M7 11V7a5 5 0 0 1 10 0v4\"/>", "layout-dashboard": "<rect width=\"7\" height=\"9\" x=\"3\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"14\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"9\" x=\"14\" y=\"12\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"3\" y=\"16\" rx=\"1\"/>", "wallet": "<path d=\"M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1\"/><path d=\"M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4\"/>", "clipboard-list": "<rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\" ry=\"1\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"/><path d=\"M12 11h4\"/><path d=\"M12 16h4\"/><path d=\"M8 11h.01\"/><path d=\"M8 16h.01\"/>", "banknote": "<rect width=\"20\" height=\"12\" x=\"2\" y=\"6\" rx=\"2\"/><circle cx=\"12\" cy=\"12\" r=\"2\"/><path d=\"M6 12h.01M18 12h.01\"/>", "smartphone": "<rect width=\"14\" height=\"20\" x=\"5\" y=\"2\" rx=\"2\" ry=\"2\"/><path d=\"M12 18h.01\"/>", "users": "<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/>", "printer": "<path d=\"M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2\"/><path d=\"M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6\"/><rect x=\"6\" y=\"14\" width=\"12\" height=\"8\" rx=\"1\"/>", "log-out": "<path d=\"M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4\"/><polyline points=\"16 17 21 12 16 7\"/><line x1=\"21\" x2=\"9\" y1=\"12\" y2=\"12\"/>", "check": "<path d=\"M20 6 9 17l-5-5\"/>", "upload": "<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"17 8 12 3 7 8\"/><line x1=\"12\" x2=\"12\" y1=\"3\" y2=\"15\"/>", "plus": "<path d=\"M5 12h14\"/><path d=\"M12 5v14\"/>", "minus": "<path d=\"M5 12h14\"/>", "store": "<path d=\"m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7\"/><path d=\"M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8\"/><path d=\"M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4\"/><path d=\"M2 7h20\"/>", "trending-up": "<polyline points=\"22 7 13.5 15.5 8.5 10.5 2 17\"/><polyline points=\"16 7 22 7 22 13\"/>", "triangle-alert": "<path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3\"/><path d=\"M12 9v4\"/><path d=\"M12 17h.01\"/>", "clock": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><polyline points=\"12 6 12 12 16 14\"/>", "download": "<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"7 10 12 15 17 10\"/><line x1=\"12\" x2=\"12\" y1=\"15\" y2=\"3\"/>", "truck": "<path d=\"M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2\"/><path d=\"M15 18H9\"/><path d=\"M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14\"/><circle cx=\"17\" cy=\"18\" r=\"2\"/><circle cx=\"7\" cy=\"18\" r=\"2\"/>", "file-spreadsheet": "<path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"/><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"/><path d=\"M8 13h2\"/><path d=\"M14 13h2\"/><path d=\"M8 17h2\"/><path d=\"M14 17h2\"/>"};
+const ICONS={"arrow-left-right":"<path d=\"M8 3 4 7l4 4\"/><path d=\"M4 7h16\"/><path d=\"m16 21 4-4-4-4\"/><path d=\"M20 17H4\"/>","key-round":"<path d=\"M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z\"/><circle cx=\"16.5\" cy=\"7.5\" r=\".5\" fill=\"currentColor\"/>","shopping-cart": "<circle cx=\"8\" cy=\"21\" r=\"1\"/><circle cx=\"19\" cy=\"21\" r=\"1\"/><path d=\"M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12\"/>", "receipt": "<path d=\"M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z\"/><path d=\"M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8\"/><path d=\"M12 17.5v-11\"/>", "package": "<path d=\"m7.5 4.27 9 5.15\"/><path d=\"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z\"/><path d=\"m3.3 7 8.7 5 8.7-5\"/><path d=\"M12 22V12\"/>", "lock": "<rect width=\"18\" height=\"11\" x=\"3\" y=\"11\" rx=\"2\" ry=\"2\"/><path d=\"M7 11V7a5 5 0 0 1 10 0v4\"/>", "layout-dashboard": "<rect width=\"7\" height=\"9\" x=\"3\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"14\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"9\" x=\"14\" y=\"12\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"3\" y=\"16\" rx=\"1\"/>", "wallet": "<path d=\"M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1\"/><path d=\"M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4\"/>", "clipboard-list": "<rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\" ry=\"1\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"/><path d=\"M12 11h4\"/><path d=\"M12 16h4\"/><path d=\"M8 11h.01\"/><path d=\"M8 16h.01\"/>", "banknote": "<rect width=\"20\" height=\"12\" x=\"2\" y=\"6\" rx=\"2\"/><circle cx=\"12\" cy=\"12\" r=\"2\"/><path d=\"M6 12h.01M18 12h.01\"/>", "smartphone": "<rect width=\"14\" height=\"20\" x=\"5\" y=\"2\" rx=\"2\" ry=\"2\"/><path d=\"M12 18h.01\"/>", "users": "<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/>", "printer": "<path d=\"M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2\"/><path d=\"M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6\"/><rect x=\"6\" y=\"14\" width=\"12\" height=\"8\" rx=\"1\"/>", "log-out": "<path d=\"M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4\"/><polyline points=\"16 17 21 12 16 7\"/><line x1=\"21\" x2=\"9\" y1=\"12\" y2=\"12\"/>", "check": "<path d=\"M20 6 9 17l-5-5\"/>", "upload": "<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"17 8 12 3 7 8\"/><line x1=\"12\" x2=\"12\" y1=\"3\" y2=\"15\"/>", "plus": "<path d=\"M5 12h14\"/><path d=\"M12 5v14\"/>", "minus": "<path d=\"M5 12h14\"/>", "store": "<path d=\"m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7\"/><path d=\"M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8\"/><path d=\"M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4\"/><path d=\"M2 7h20\"/>", "trending-up": "<polyline points=\"22 7 13.5 15.5 8.5 10.5 2 17\"/><polyline points=\"16 7 22 7 22 13\"/>", "triangle-alert": "<path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3\"/><path d=\"M12 9v4\"/><path d=\"M12 17h.01\"/>", "clock": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><polyline points=\"12 6 12 12 16 14\"/>", "download": "<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"7 10 12 15 17 10\"/><line x1=\"12\" x2=\"12\" y1=\"15\" y2=\"3\"/>", "truck": "<path d=\"M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2\"/><path d=\"M15 18H9\"/><path d=\"M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14\"/><circle cx=\"17\" cy=\"18\" r=\"2\"/><circle cx=\"7\" cy=\"18\" r=\"2\"/>", "file-text":"<path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"/><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"/><path d=\"M10 9H8\"/><path d=\"M16 13H8\"/><path d=\"M16 17H8\"/>","file-spreadsheet": "<path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"/><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"/><path d=\"M8 13h2\"/><path d=\"M14 13h2\"/><path d=\"M8 17h2\"/><path d=\"M14 17h2\"/>"};
 const ICOL={"arrow-left-right":"purple","key-round":"purple","shopping-cart": "green", "receipt": "blue", "package": "orange", "lock": "purple", "layout-dashboard": "blue", "wallet": "teal", "clipboard-list": "blue", "banknote": "green", "smartphone": "blue", "users": "orange", "printer": "blue", "log-out": "red", "upload": "teal", "store": "green", "trending-up": "blue", "triangle-alert": "orange", "clock": "orange", "download": "blue", "truck": "orange", "file-spreadsheet": "green"};
 const ic=(n,sz)=>ICONS[n]?'<svg class="ic" viewBox="0 0 24 24" width="'+(sz||18)+'" height="'+(sz||18)+'" aria-hidden="true"'+(ICOL[n]?' style="color:var(--ic-'+ICOL[n]+')"':'')+'>'+ICONS[n]+'</svg>':'';
 const fmt=n=>Number(n||0).toLocaleString('fr-FR').replace(/[  ]/g,' ')+' F';
@@ -188,7 +188,7 @@ async function start(){
   else{S.tab=me.role==='central'?'stock':'apercu';await loadDirector()}
   draw();
   if(me.role==='cashier'){setInterval(()=>syncQueue(),20000);setInterval(beat,30000);beat()}
-  if(me.role==='director'||me.role==='admin'){setInterval(()=>{loadDirector().then(()=>{if(S.tab==='apercu'||S.tab==='versements')draw()})},60000);subscribeRT()}
+  if(me.role==='director'||me.role==='admin'){setInterval(()=>{loadDirector().then(()=>{if(S.tab==='apercu'||S.tab==='central')draw()})},60000);subscribeRT()}
 }
 async function logout(){if(getQ().length&&!confirm('Des ventes ne sont pas encore envoyées. Se déconnecter quand même ?'))return;await sb.auth.signOut();me=null;loginScreen()}
 
@@ -449,24 +449,24 @@ async function loadDirStock(st){
 }
 function subscribeRT(){
   if(rt)return;
-  const bump=()=>{clearTimeout(rtT);rtT=setTimeout(async()=>{await loadDirector();if(['apercu','versements','depenses'].includes(S.tab)){draw()}},600)};
+  const bump=()=>{clearTimeout(rtT);rtT=setTimeout(async()=>{await loadDirector();if(['apercu','central','depenses'].includes(S.tab)){draw()}},600)};
   rt=sb.channel('direction');
   ['sales','versements','closures','store_status','expenses'].forEach(t=>rt.on('postgres_changes',{event:'*',schema:'public',table:t},bump));
   rt.subscribe();
 }
 function drawDirector(){
   const central=me.role==='central';
-  const tabs=central?[['stock',ic('store')+'Stock du Central']]:[['apercu',ic('layout-dashboard')+'Tableau de bord'],['stock',ic('package')+'Stock'],['achats',ic('arrow-left-right')+'Achats / transferts'],['versements',ic('wallet')+'Versements'+(pendingVers()?` <span class="badge b-bad">${pendingVers()}</span>`:'')],['depenses',ic('wallet')+'Dépenses'],['import',ic('clipboard-list')+'Inventaire (import)']];
+  const tabs=central?[['stock',ic('store')+'Stock du Central'],['central',ic('file-text')+'Factures aux magasins']]:[['apercu',ic('layout-dashboard')+'Tableau de bord'],['stock',ic('package')+'Stock'],['achats',ic('arrow-left-right')+'Achats / transferts'],['central',ic('store')+'Magasin Central'+(pendingVers()?` <span class="badge b-bad">${pendingVers()}</span>`:'')],['depenses',ic('wallet')+'Dépenses'],['import',ic('clipboard-list')+'Inventaire (import)']];
   let b='';
   if(S.tab==='apercu')b=dirOverview();
-  else if(S.tab==='versements')b=dirVers();
+  else if(S.tab==='central')b=dirCentral();
   else if(S.tab==='depenses')b=dirDepenses();
   else if(S.tab==='achats')b=dirAchats();
   else if(S.tab==='stock')b=dirStock();
   else b=dirImport();
   $('#app').innerHTML=shell(tabs,b);
   if(S.tab==='apercu')bindOverview();
-  if(S.tab==='versements')bindVers();
+  if(S.tab==='central')bindCentral();
   if(S.tab==='depenses')bindDepenses();
   if(S.tab==='achats')bindAchats();
   if(S.tab==='stock')bindDirStock();
@@ -613,7 +613,7 @@ function dirOverview(){
 }
 function bindOverview(){
   document.querySelectorAll('#per button').forEach(b=>b.onclick=()=>{D.per=b.dataset.p;draw()});
-  const g=$('#gov');if(g)g.onclick=()=>{S.tab='versements';draw()};
+  const g=$('#gov');if(g)g.onclick=()=>{S.tab='central';draw()};
   const sv=()=>{D.rapp={tel:$('#rt').value,mail:$('#rmm').value,heure:$('#rhh').value||'20:30'};LS.set('rapp',D.rapp)};
   $('#rwa').onclick=()=>{sv();let d=D.rapp.tel.replace(/\D/g,'');if(d.length<9){toast('Saisissez le numéro WhatsApp (9 chiffres).');return}if(d.length===9)d='221'+d;window.open('https://wa.me/'+d+'?text='+encodeURIComponent(rapportText()),'_blank')};
   $('#rem').onclick=()=>{sv();if(!/.+@.+/.test(D.rapp.mail)){toast('Saisissez une adresse e-mail valide.');return}location.href='mailto:'+D.rapp.mail+'?subject='+encodeURIComponent('Rapport du soir MINANE SHOP — '+dmyFull(dayStr(0)))+'&body='+encodeURIComponent(rapportText())};
@@ -712,6 +712,93 @@ function bindVers(){
   };
   document.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>act(b.dataset.c,'confirmed'));
   document.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{if(confirm('Refuser ce versement ?'))act(b.dataset.r,'rejected')});
+}
+
+/* ---------- MAGASIN CENTRAL : factures, règlements, situation ---------- */
+const CV={lines:[],to:'SAN'};let CINV=[],CLOADED=false;
+async function loadCentral(){
+  CLOADED=true;
+  try{CINV=await q(sb.from('central_invoices').select('*,central_invoice_items(*)').order('issued_at',{ascending:false}).limit(100));D.cbal=await q(sb.from('central_balance').select('*'));await loadDirStock('CEN')}catch(e){toast('Chargement impossible : '+(e.message||e))}
+}
+const invPaid=(st)=>{const b=D.cbal.find(x=>x.store_id===st)||{invoiced:0,paid:0};return b};
+function dirCentral(){
+  const isC=me.role==='central',cen=D.stock.CEN||[],aname=id=>(D.arts.find(a=>a.id===id)||{name:id}).name;
+  const pcs=cen.reduce((t,r)=>t+Math.max(0,r.qty),0),due=D.cbal.reduce((t,b)=>t+Math.max(0,b.invoiced-b.paid),0);
+  const stores=SHOPS.map(k=>`<option value="${k}" ${CV.to===k?'selected':''}>${esc(STORES[k])}</option>`).join('');
+  const arts=D.arts.filter(a=>cen.some(r=>r.article_id===a.id&&r.qty>0)).map(a=>`<option value="${esc(a.id)}">${esc(a.name)}</option>`).join('');
+  const tot=CV.lines.reduce((t,l)=>t+l.qty*l.price,0);
+  const sit=SHOPS.map(k=>{const b=invPaid(k),r=b.invoiced-b.paid,li=CINV.filter(i=>i.store_id===k)[0];
+    return `<tr><td>${dot(k)}<b>${esc(STORES[k])}</b>${li?`<div class="mu" style="font-size:12px">Dernière facture : ${dtFr(li.issued_at)}</div>`:''}</td><td class="n">${fmt(b.invoiced)}</td><td class="n">${fmt(b.paid)}</td><td class="n"><b style="color:${r>0?'var(--rd)':'inherit'}">${fmt(Math.max(0,r))}</b></td><td class="n">${r<0?'<b style="color:var(--g)">'+fmt(-r)+'</b>':'—'}</td></tr>`}).join('');
+  const paidOf=i=>{return null};
+  const inv=CINV.slice(0,25).map(i=>`<tr><td><b>${esc(i.invoice_no)}</b></td><td>${dtFr(i.issued_at)}</td><td>${dot(i.store_id)}${esc(STORES[i.store_id])}</td><td class="n">${(i.central_invoice_items||[]).reduce((t,x)=>t+x.qty,0)}</td><td class="n"><b>${fmt(i.total)}</b></td><td class="n"><button class="btn sm sec" data-pi="${i.id}">${ic('printer',16)}Imprimer</button></td></tr>`).join('')||'<tr><td colspan="6" class="mu">Aucune facture pour le moment.</td></tr>';
+  const reg=D.vers.filter(v=>v.status==='confirmed').slice(0,10).map(v=>`<tr><td>${dtFr(v.confirmed_at||v.created_at)}</td><td>${esc(STORES[v.store_id])}</td><td>${v.method==='wave'?'Wave':v.method==='om'?'OM':'Espèces'}${v.reference?' · '+esc(v.reference):''}</td><td class="n">${fmt(v.amount)}</td></tr>`).join('')||'<tr><td colspan="4" class="mu">Aucun règlement.</td></tr>';
+  const lines=CV.lines.length?`<table><thead><tr><th>Article</th><th class="n">Qté</th><th class="n">Prix</th><th class="n">Montant</th><th></th></tr></thead><tbody>${CV.lines.map((l,i)=>`<tr><td>${esc(aname(l.article_id))}${[l.size&&' · P'+l.size,l.color&&' · '+l.color].filter(Boolean).join('')}</td><td class="n">${l.qty}</td><td class="n">${fmt(l.price)}</td><td class="n">${fmt(l.qty*l.price)}</td><td><button class="btn sm sec" data-rm="${i}">×</button></td></tr>`).join('')}<tr><td colspan="3" class="n"><b>Total</b></td><td class="n"><b>${fmt(tot)}</b></td><td></td></tr></tbody></table>`:'<p class="mu" style="font-size:13px">Aucune ligne. Choisissez un article puis « Ajouter la ligne ».</p>';
+  return `<div class="kpi"><div><small>${ic('package')}Stock du Central</small><b>${pcs}</b><small>pièces</small></div><div><small>${ic('store')}Dû par les magasins</small><b style="color:${due?'var(--rd)':'inherit'}">${fmt(due)}</b><small>factures moins versements confirmés</small></div><div><small>${ic('wallet')}Versements à confirmer</small><b>${pendingVers()}</b><small>envoyés par les caissiers</small></div></div>
+  ${isC?'':dirVers()}
+  <div class="card"><h2>${ic('store')}Situation par magasin <small class="mu" style="font-weight:400">facturé par le Central, réglé, reste dû</small></h2><div class="tw"><table><thead><tr><th>Magasin</th><th class="n">Facturé</th><th class="n">Réglé</th><th class="n">Reste dû</th><th class="n">Avance</th></tr></thead><tbody>${sit}</tbody></table></div></div>
+  <div class="grid2" style="grid-template-columns:1fr 1fr"><div class="card"><h2>${ic('file-text')}Nouvelle facture <small class="mu" style="font-weight:400">prix de gros</small></h2>
+  <label>Destinataire</label><select id="cto">${stores}</select>
+  <label>Article</label><select id="cta"><option value="">— choisir —</option>${arts}</select>
+  <label>Pointure / couleur</label><select id="ctc"></select>
+  <div class="row"><div style="flex:1"><label>Quantité</label><input id="ctq" type="number" min="1" value="1"></div><div style="flex:1"><label>Prix de gros (F)</label><input id="ctp" type="number" min="0"></div></div>
+  <button class="btn sec" id="cadd" style="margin-top:10px">${ic('plus')}Ajouter la ligne</button><div style="margin-top:12px">${lines}</div>
+  <div class="row"><div style="flex:1"><label>Acompte reçu (F)</label><input id="cac" type="number" min="0" value="0"></div><div style="flex:1"><label>Mode</label><select id="cmd"><option value="cash">Espèces</option><option value="wave">Wave</option><option value="om">Orange Money</option></select></div></div>
+  <button class="btn big" id="cgo" style="margin-top:12px">${ic('check',20)}Établir la facture et livrer</button><div class="err" id="cerr"></div></div>
+  ${isC?'<div class="card"><h2>Règlements</h2><div class="tw"><table><tbody>'+reg+'</tbody></table></div></div>':`<div><div class="card"><h2>${ic('wallet')}Règlement reçu</h2><label>Magasin payeur</label><select id="rps">${SHOPS.map(k=>{const b=invPaid(k),r=b.invoiced-b.paid;return `<option value="${k}">${esc(STORES[k])} · dû ${fmt(Math.max(0,r))}</option>`}).join('')}</select>
+  <div class="row"><div style="flex:1"><label>Montant (F)</label><input id="rpa" type="number" min="1"></div><div style="flex:1"><label>Mode</label><select id="rpm"><option value="cash">Espèces</option><option value="wave">Wave</option><option value="om">Orange Money</option></select></div></div>
+  <button class="btn big" id="rpg" style="margin-top:12px">${ic('check',20)}Enregistrer le règlement</button><div class="err" id="rperr"></div></div>
+  <div class="card"><h2>Derniers règlements</h2><div class="tw"><table><tbody>${reg}</tbody></table></div></div></div>`}</div>
+  <div class="card"><h2>${ic('file-text')}Factures <small class="mu" style="font-weight:400">${CINV.length} au total</small></h2><div class="tw"><table><thead><tr><th>N°</th><th>Date et heure</th><th>Destinataire</th><th class="n">Pièces</th><th class="n">Total</th><th></th></tr></thead><tbody>${inv}</tbody></table></div></div>`;
+}
+function printInvoice(i){
+  const aname=id=>(D.arts.find(a=>a.id===id)||{name:id}).name,items=i.central_invoice_items||[];
+  const b=invPaid(i.store_id);
+  const rows=items.map(x=>`<tr><td>${esc(aname(x.article_id))}${[x.size&&' · P'+x.size,x.color&&' · '+x.color].filter(Boolean).join('')}</td><td class="r">${x.qty}</td><td class="r">${fmt(x.unit_price)}</td><td class="r">${fmt(x.qty*x.unit_price)}</td></tr>`).join('');
+  const html=`<!doctype html><meta charset="utf-8"><title>${esc(i.invoice_no)}</title><style>body{font:14px Arial,sans-serif;margin:18mm;color:#111}table{border-collapse:collapse;width:100%;margin-top:18px}th,td{border:1px solid #bbb;padding:7px 9px;text-align:left}th{background:#f1f1f1}.r{text-align:right}.h{display:flex;justify-content:space-between;align-items:flex-start}.box{border:1px solid #bbb;padding:10px 14px}.sig{display:flex;justify-content:space-between;margin-top:60px}</style>
+  <div class="h"><div><img src="${location.origin}/logo.png" style="max-height:26mm;max-width:80mm"><br><b>MINANE SHOP — Magasin Central</b></div><div class="box"><b style="font-size:18px">FACTURE ${esc(i.invoice_no)}</b><br>${dtFr(i.issued_at)}</div></div>
+  <p><b>Destinataire :</b> ${esc(STORES[i.store_id])}</p>
+  <table><thead><tr><th>Désignation</th><th class="r">Qté</th><th class="r">Prix unitaire</th><th class="r">Montant</th></tr></thead><tbody>${rows}<tr><td colspan="3" class="r"><b>TOTAL</b></td><td class="r"><b>${fmt(i.total)} </b></td></tr></tbody></table>
+  <p>Situation du magasin à ce jour : facturé ${fmt(b.invoiced)} · réglé ${fmt(b.paid)} · reste dû <b>${fmt(Math.max(0,b.invoiced-b.paid))}</b></p>
+  <div class="sig"><div>Le Magasin Central</div><div>Le Magasin (reçu conforme)</div></div><script>onload=()=>setTimeout(()=>print(),400)<\/script>`;
+  const w=window.open('','_blank');if(!w){toast('Autorisez les fenêtres pour imprimer.');return}w.document.write(html);w.document.close();
+}
+function bindCentral(){
+  if(!CLOADED){loadCentral().then(()=>{if(S.tab==='central')draw()})}
+  if(me.role!=='central')bindVers();
+  const art=id=>D.arts.find(a=>a.id===id),cen=D.stock.CEN||[];
+  let rows=[];
+  const upd=()=>{const id=$('#cta').value;rows=cen.filter(r=>r.article_id===id&&r.qty>0);
+    $('#ctc').innerHTML=rows.length?rows.map((r,i)=>`<option value="${i}">${esc(comboLabel(r))} — ${r.qty} dispo</option>`).join(''):'<option value="">—</option>';
+    const a=art(id);$('#ctp').value=a?(a.wholesale_price??a.price??''):''};
+  $('#cta').onchange=upd;$('#cto').onchange=()=>{CV.to=$('#cto').value};
+  document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{CV.lines.splice(+b.dataset.rm,1);draw()});
+  $('#cadd').onclick=()=>{
+    const r=rows[+$('#ctc').value],qty=Math.round(+$('#ctq').value||0),price=Math.round(+$('#ctp').value);
+    if(!r||!(qty>0)||!(price>=0)){$('#cerr').textContent='Choisissez un article, une quantité et un prix.';return}
+    const dej=CV.lines.filter(l=>l.article_id===r.article_id&&l.size===r.size&&l.color===r.color).reduce((t,l)=>t+l.qty,0);
+    if(dej+qty>r.qty){$('#cerr').textContent='Stock du Central insuffisant ('+r.qty+' disponible'+(dej?', dont '+dej+' déjà sur la facture':'')+').';return}
+    const ex=CV.lines.find(l=>l.article_id===r.article_id&&l.size===r.size&&l.color===r.color&&l.price===price);
+    if(ex)ex.qty+=qty;else CV.lines.push({article_id:r.article_id,size:r.size,color:r.color,qty,price});
+    draw();
+  };
+  $('#cgo').onclick=async()=>{
+    if(!CV.lines.length){$('#cerr').textContent='Ajoutez au moins une ligne.';return}
+    const paid=Math.round(+$('#cac').value||0),tot=CV.lines.reduce((t,l)=>t+l.qty*l.price,0);
+    if(paid<0||paid>tot){$('#cerr').textContent='Acompte invalide (maximum '+fmt(tot)+').';return}
+    $('#cgo').disabled=true;
+    try{
+      const no=await q(sb.rpc('record_invoice',{p_store:CV.to,p_items:CV.lines.map(l=>({article_id:l.article_id,size:l.size,color:l.color,qty:l.qty,unit_price:l.price})),p_paid:paid,p_method:$('#cmd').value}));
+      const touched=[...new Set(CV.lines.map(l=>l.article_id))];
+      if(me.role!=='central')for(const id of touched){const l=CV.lines.find(x=>x.article_id===id);try{await q(sb.from('articles').update({wholesale_price:l.price}).eq('id',id).select('id'))}catch(e){}}
+      CV.lines=[];toast('Facture '+no+' établie : '+fmt(tot));D.stock[CV.to]=null;
+      await Promise.all([loadCentral(),me.role==='central'?0:loadDirector()]);draw();
+    }catch(e){$('#cerr').textContent='Erreur : '+(e.message||e);$('#cgo').disabled=false}
+  };
+  document.querySelectorAll('[data-pi]').forEach(b=>b.onclick=()=>printInvoice(CINV.find(x=>x.id===b.dataset.pi)));
+  const rg=$('#rpg');if(rg)rg.onclick=async()=>{
+    const a=Math.round(+$('#rpa').value||0);if(!(a>0)){$('#rperr').textContent='Saisissez le montant reçu.';return}
+    try{await q(sb.from('versements').insert({store_id:$('#rps').value,day:dayStr(0),amount:a,method:$('#rpm').value,reference:'Règlement direct',status:'confirmed',confirmed_by:me.id,confirmed_at:new Date().toISOString()}).select('id'));toast('Règlement de '+fmt(a)+' enregistré');await loadDirector();draw()}catch(e){$('#rperr').textContent='Erreur : '+(e.message||e)}
+  };
 }
 function dirStock(){
   const st=me.role==='central'?'CEN':D.store;
