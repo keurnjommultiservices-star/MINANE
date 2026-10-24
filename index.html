@@ -80,7 +80,7 @@ header.top .pill .ic{margin-right:4px;width:14px;height:14px;vertical-align:-2px
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 'use strict';
-const BUILD='1.3';
+const BUILD='1.4';
 const SB_URL='https://ehnptnwvwshmcaqrupru.supabase.co';
 const SB_KEY='sb_publishable_h3I7whuNEfbnfub_Q0eP6w_e77YMUqn';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
@@ -88,8 +88,8 @@ const STORES={SAN:'MINANE SANDAGA',MIR:'CHRISBELLA SANDAGA',HLM:'HLM 5',TOU:'TOU
 const SHOPS=['SAN','MIR','HLM','TOU','PIK'];
 const $=(s,r=document)=>r.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const ICONS={"shopping-cart": "<circle cx=\"8\" cy=\"21\" r=\"1\"/><circle cx=\"19\" cy=\"21\" r=\"1\"/><path d=\"M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12\"/>", "receipt": "<path d=\"M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z\"/><path d=\"M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8\"/><path d=\"M12 17.5v-11\"/>", "package": "<path d=\"m7.5 4.27 9 5.15\"/><path d=\"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z\"/><path d=\"m3.3 7 8.7 5 8.7-5\"/><path d=\"M12 22V12\"/>", "lock": "<rect width=\"18\" height=\"11\" x=\"3\" y=\"11\" rx=\"2\" ry=\"2\"/><path d=\"M7 11V7a5 5 0 0 1 10 0v4\"/>", "layout-dashboard": "<rect width=\"7\" height=\"9\" x=\"3\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"14\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"9\" x=\"14\" y=\"12\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"3\" y=\"16\" rx=\"1\"/>", "wallet": "<path d=\"M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1\"/><path d=\"M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4\"/>", "clipboard-list": "<rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\" ry=\"1\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"/><path d=\"M12 11h4\"/><path d=\"M12 16h4\"/><path d=\"M8 11h.01\"/><path d=\"M8 16h.01\"/>", "banknote": "<rect width=\"20\" height=\"12\" x=\"2\" y=\"6\" rx=\"2\"/><circle cx=\"12\" cy=\"12\" r=\"2\"/><path d=\"M6 12h.01M18 12h.01\"/>", "smartphone": "<rect width=\"14\" height=\"20\" x=\"5\" y=\"2\" rx=\"2\" ry=\"2\"/><path d=\"M12 18h.01\"/>", "users": "<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/>", "printer": "<path d=\"M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2\"/><path d=\"M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6\"/><rect x=\"6\" y=\"14\" width=\"12\" height=\"8\" rx=\"1\"/>", "log-out": "<path d=\"M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4\"/><polyline points=\"16 17 21 12 16 7\"/><line x1=\"21\" x2=\"9\" y1=\"12\" y2=\"12\"/>", "check": "<path d=\"M20 6 9 17l-5-5\"/>", "upload": "<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"17 8 12 3 7 8\"/><line x1=\"12\" x2=\"12\" y1=\"3\" y2=\"15\"/>", "plus": "<path d=\"M5 12h14\"/><path d=\"M12 5v14\"/>", "minus": "<path d=\"M5 12h14\"/>", "store": "<path d=\"m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7\"/><path d=\"M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8\"/><path d=\"M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4\"/><path d=\"M2 7h20\"/>", "trending-up": "<polyline points=\"22 7 13.5 15.5 8.5 10.5 2 17\"/><polyline points=\"16 7 22 7 22 13\"/>", "triangle-alert": "<path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3\"/><path d=\"M12 9v4\"/><path d=\"M12 17h.01\"/>", "clock": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><polyline points=\"12 6 12 12 16 14\"/>", "download": "<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"7 10 12 15 17 10\"/><line x1=\"12\" x2=\"12\" y1=\"15\" y2=\"3\"/>", "truck": "<path d=\"M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2\"/><path d=\"M15 18H9\"/><path d=\"M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14\"/><circle cx=\"17\" cy=\"18\" r=\"2\"/><circle cx=\"7\" cy=\"18\" r=\"2\"/>", "file-spreadsheet": "<path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"/><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"/><path d=\"M8 13h2\"/><path d=\"M14 13h2\"/><path d=\"M8 17h2\"/><path d=\"M14 17h2\"/>"};
-const ICOL={"shopping-cart": "green", "receipt": "blue", "package": "orange", "lock": "purple", "layout-dashboard": "blue", "wallet": "teal", "clipboard-list": "blue", "banknote": "green", "smartphone": "blue", "users": "orange", "printer": "blue", "log-out": "red", "upload": "teal", "store": "green", "trending-up": "blue", "triangle-alert": "orange", "clock": "orange", "download": "blue", "truck": "orange", "file-spreadsheet": "green"};
+const ICONS={"arrow-left-right":"<path d=\"M8 3 4 7l4 4\"/><path d=\"M4 7h16\"/><path d=\"m16 21 4-4-4-4\"/><path d=\"M20 17H4\"/>","key-round":"<path d=\"M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z\"/><circle cx=\"16.5\" cy=\"7.5\" r=\".5\" fill=\"currentColor\"/>","shopping-cart": "<circle cx=\"8\" cy=\"21\" r=\"1\"/><circle cx=\"19\" cy=\"21\" r=\"1\"/><path d=\"M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12\"/>", "receipt": "<path d=\"M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z\"/><path d=\"M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8\"/><path d=\"M12 17.5v-11\"/>", "package": "<path d=\"m7.5 4.27 9 5.15\"/><path d=\"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z\"/><path d=\"m3.3 7 8.7 5 8.7-5\"/><path d=\"M12 22V12\"/>", "lock": "<rect width=\"18\" height=\"11\" x=\"3\" y=\"11\" rx=\"2\" ry=\"2\"/><path d=\"M7 11V7a5 5 0 0 1 10 0v4\"/>", "layout-dashboard": "<rect width=\"7\" height=\"9\" x=\"3\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"14\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"9\" x=\"14\" y=\"12\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"3\" y=\"16\" rx=\"1\"/>", "wallet": "<path d=\"M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1\"/><path d=\"M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4\"/>", "clipboard-list": "<rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\" ry=\"1\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"/><path d=\"M12 11h4\"/><path d=\"M12 16h4\"/><path d=\"M8 11h.01\"/><path d=\"M8 16h.01\"/>", "banknote": "<rect width=\"20\" height=\"12\" x=\"2\" y=\"6\" rx=\"2\"/><circle cx=\"12\" cy=\"12\" r=\"2\"/><path d=\"M6 12h.01M18 12h.01\"/>", "smartphone": "<rect width=\"14\" height=\"20\" x=\"5\" y=\"2\" rx=\"2\" ry=\"2\"/><path d=\"M12 18h.01\"/>", "users": "<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/>", "printer": "<path d=\"M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2\"/><path d=\"M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6\"/><rect x=\"6\" y=\"14\" width=\"12\" height=\"8\" rx=\"1\"/>", "log-out": "<path d=\"M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4\"/><polyline points=\"16 17 21 12 16 7\"/><line x1=\"21\" x2=\"9\" y1=\"12\" y2=\"12\"/>", "check": "<path d=\"M20 6 9 17l-5-5\"/>", "upload": "<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"17 8 12 3 7 8\"/><line x1=\"12\" x2=\"12\" y1=\"3\" y2=\"15\"/>", "plus": "<path d=\"M5 12h14\"/><path d=\"M12 5v14\"/>", "minus": "<path d=\"M5 12h14\"/>", "store": "<path d=\"m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7\"/><path d=\"M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8\"/><path d=\"M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4\"/><path d=\"M2 7h20\"/>", "trending-up": "<polyline points=\"22 7 13.5 15.5 8.5 10.5 2 17\"/><polyline points=\"16 7 22 7 22 13\"/>", "triangle-alert": "<path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3\"/><path d=\"M12 9v4\"/><path d=\"M12 17h.01\"/>", "clock": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><polyline points=\"12 6 12 12 16 14\"/>", "download": "<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"7 10 12 15 17 10\"/><line x1=\"12\" x2=\"12\" y1=\"15\" y2=\"3\"/>", "truck": "<path d=\"M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2\"/><path d=\"M15 18H9\"/><path d=\"M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14\"/><circle cx=\"17\" cy=\"18\" r=\"2\"/><circle cx=\"7\" cy=\"18\" r=\"2\"/>", "file-spreadsheet": "<path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"/><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"/><path d=\"M8 13h2\"/><path d=\"M14 13h2\"/><path d=\"M8 17h2\"/><path d=\"M14 17h2\"/>"};
+const ICOL={"arrow-left-right":"purple","key-round":"purple","shopping-cart": "green", "receipt": "blue", "package": "orange", "lock": "purple", "layout-dashboard": "blue", "wallet": "teal", "clipboard-list": "blue", "banknote": "green", "smartphone": "blue", "users": "orange", "printer": "blue", "log-out": "red", "upload": "teal", "store": "green", "trending-up": "blue", "triangle-alert": "orange", "clock": "orange", "download": "blue", "truck": "orange", "file-spreadsheet": "green"};
 const ic=(n,sz)=>ICONS[n]?'<svg class="ic" viewBox="0 0 24 24" width="'+(sz||18)+'" height="'+(sz||18)+'" aria-hidden="true"'+(ICOL[n]?' style="color:var(--ic-'+ICOL[n]+')"':'')+'>'+ICONS[n]+'</svg>':'';
 const fmt=n=>Number(n||0).toLocaleString('fr-FR').replace(/[  ]/g,' ')+' F';
 const uid=()=>crypto.randomUUID();
@@ -222,13 +222,26 @@ function paintNet(){
 }
 function shell(tabs,body){
   const who=me.role==='cashier'?STORES[me.store_id]:me.role==='central'?STORES.CEN:'Direction';
-  return `<header class="top"><img class="hl" src="logo.png" alt="Minane"><h1>${esc(who)}<small>${esc(me.full_name)}</small></h1><span id="net" class="pill ok">En ligne</span><button class="pill" id="lo" style="border:0;color:#fff">${ic('log-out',14)}Quitter</button></header>
+  return `<header class="top"><img class="hl" src="logo.png" alt="Minane"><h1>${esc(who)}<small>${esc(me.full_name)}</small></h1><span id="net" class="pill ok">En ligne</span><button class="pill" id="pw" style="border:0;color:#fff">${ic('key-round',14)}Mot de passe</button><button class="pill" id="lo" style="border:0;color:#fff">${ic('log-out',14)}Quitter</button></header>
   <nav class="tabs">${tabs.map(([k,l])=>`<button data-tab="${k}" class="${S.tab===k?'on':''}">${l}</button>`).join('')}</nav><main>${body}</main>`;
 }
 function bindShell(){
-  $('#lo').onclick=logout;
+  $('#lo').onclick=logout;$('#pw').onclick=pwModal;
   document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;draw()});
   paintNet();
+}
+function pwModal(){
+  const m=modal(`<h2 style="margin-top:0">Changer mon mot de passe</h2><label>Nouveau mot de passe (8 caractères au moins)</label><input id="np" type="password" autocomplete="new-password"><label>Retapez-le</label><input id="np2" type="password" autocomplete="new-password"><div class="err" id="pe"></div><button class="btn big" style="margin-top:12px" id="pok">Enregistrer</button><button class="btn sec big" style="margin-top:8px" id="pcx">Annuler</button>`);
+  $('#pcx',m).onclick=()=>m.remove();
+  $('#pok',m).onclick=async()=>{
+    const a=$('#np',m).value,b=$('#np2',m).value;
+    if(a.length<8){$('#pe',m).textContent='Au moins 8 caractères.';return}
+    if(a!==b){$('#pe',m).textContent='Les deux mots de passe sont différents.';return}
+    if(!navigator.onLine){$('#pe',m).textContent='Il faut internet pour changer le mot de passe.';return}
+    const {error}=await sb.auth.updateUser({password:a});
+    if(error){$('#pe',m).textContent='Impossible : '+error.message;return}
+    m.remove();toast('Mot de passe modifié');
+  };
 }
 function draw(){
   if(!me)return;
@@ -438,17 +451,19 @@ function subscribeRT(){
 }
 function drawDirector(){
   const central=me.role==='central';
-  const tabs=central?[['stock',ic('store')+'Stock du Central']]:[['apercu',ic('layout-dashboard')+'Tableau de bord'+(pendingVers()?` <span class="badge b-bad">${pendingVers()}</span>`:'')],['stock',ic('package')+'Stock'],['versements',ic('wallet')+'Versements'],['depenses',ic('wallet')+'Dépenses'],['import',ic('clipboard-list')+'Inventaire (import)']];
+  const tabs=central?[['stock',ic('store')+'Stock du Central']]:[['apercu',ic('layout-dashboard')+'Tableau de bord'],['stock',ic('package')+'Stock'],['achats',ic('arrow-left-right')+'Achats / transferts'],['versements',ic('wallet')+'Versements'+(pendingVers()?` <span class="badge b-bad">${pendingVers()}</span>`:'')],['depenses',ic('wallet')+'Dépenses'],['import',ic('clipboard-list')+'Inventaire (import)']];
   let b='';
   if(S.tab==='apercu')b=dirOverview();
   else if(S.tab==='versements')b=dirVers();
   else if(S.tab==='depenses')b=dirDepenses();
+  else if(S.tab==='achats')b=dirAchats();
   else if(S.tab==='stock')b=dirStock();
   else b=dirImport();
   $('#app').innerHTML=shell(tabs,b);
   if(S.tab==='apercu')bindOverview();
   if(S.tab==='versements')bindVers();
   if(S.tab==='depenses')bindDepenses();
+  if(S.tab==='achats')bindAchats();
   if(S.tab==='stock')bindDirStock();
   if(S.tab==='import')bindImport();
 }
@@ -563,6 +578,59 @@ function bindDepenses(){
     const cat=$('#dc').value,row={store_id:$('#ds').value,day:dayStr(0),category:cat,label,amount,month:MONTHLY.includes(cat)?($('#dmo').value||dayStr(0).slice(0,7)):null};
     try{await q(sb.from('expenses').insert(row).select('id'));toast('Dépense enregistrée');await loadDirector();draw()}catch(e){$('#derr').textContent='Erreur : '+(e.message||e)}
   };
+}
+
+/* ---------- ACHATS ET TRANSFERTS ---------- */
+let MOVES=[],MOVES_LOADED=false;
+const combos=(rows,id)=>rows.filter(r=>r.article_id===id);
+const comboLabel=r=>[r.size&&'Pointure '+r.size,r.color].filter(Boolean).join(' · ')||'Standard';
+async function loadMoves(){
+  MOVES_LOADED=true;
+  try{MOVES=await q(sb.from('stock_moves').select('id,store_id,article_id,size,color,delta,reason,note,created_at').in('reason',['purchase','transfer_out']).order('created_at',{ascending:false}).limit(15))}catch(e){MOVES=[]}
+}
+function dirAchats(){
+  const so=Object.keys(STORES).map(k=>`<option value="${k}">${esc(STORES[k])}</option>`).join(''),ao=D.arts.map(a=>`<option value="${esc(a.id)}">${esc(a.name)}</option>`).join('');
+  const aname=id=>(D.arts.find(a=>a.id===id)||{name:id}).name;
+  const hist=MOVES.map(m=>`<tr><td>${dtFr(m.created_at)}</td><td><span class="badge ${m.reason==='purchase'?'b-ok':'b-wait'}">${m.reason==='purchase'?'Achat':'Transfert'}</span></td><td>${esc(aname(m.article_id))}${[m.size&&' · P'+m.size,m.color&&' · '+m.color].filter(Boolean).join('')}</td><td class="n">${Math.abs(m.delta)}</td><td>${m.reason==='purchase'?esc(m.note||'')+' → '+esc(STORES[m.store_id]):esc((m.note||'').replace(/[A-Z]{3}/g,x=>STORES[x]||x))}</td></tr>`).join('')||'<tr><td colspan="5" class="mu">Aucun mouvement.</td></tr>';
+  return `<div class="grid2" style="grid-template-columns:1fr 1fr"><div class="card"><h2>${ic('truck')}Réception d’achat</h2>
+  <label>Magasin</label><select id="as">${so}</select><label>Fournisseur</label><input id="af" placeholder="Ex. Ets Diallo Cuir"><label>Article</label><select id="aa">${ao}</select>
+  <div id="asz"><label>Pointure</label><input id="aszv" inputmode="numeric" placeholder="Ex. 42"></div><div id="acl"><label>Couleur</label><input id="aclv" placeholder="Ex. Noir"></div>
+  <div class="row"><div style="flex:1"><label>Quantité</label><input id="aq" type="number" min="1" value="10"></div><div style="flex:1"><label>Coût unitaire (F)</label><input id="ac" type="number" min="0" value="0"></div></div>
+  <button class="btn big" id="ago" style="margin-top:12px">${ic('check',20)}Enregistrer l’achat</button><div class="err" id="aerr"></div></div>
+  <div class="card"><h2>${ic('arrow-left-right')}Transfert entre magasins</h2>
+  <div class="row"><div style="flex:1"><label>De</label><select id="tf">${so}</select></div><div style="flex:1"><label>Vers</label><select id="tt">${so}</select></div></div>
+  <label>Article</label><select id="ta">${ao}</select><label>Pointure / couleur</label><select id="tc"></select>
+  <div class="row"><div style="flex:1"><label>Quantité</label><input id="tq" type="number" min="1" value="1"></div><div style="flex:1"><label>Disponible</label><div id="tav" style="padding:10px 0;font-weight:700"></div></div></div>
+  <button class="btn big" id="tgo" style="margin-top:12px">${ic('arrow-left-right',20)}Transférer</button><div class="err" id="terr"></div></div></div>
+  <div class="card"><h2>Derniers mouvements</h2><div class="tw"><table><thead><tr><th>Date</th><th>Type</th><th>Article</th><th class="n">Qté</th><th>Détail</th></tr></thead><tbody>${hist}</tbody></table></div></div>`;
+}
+function bindAchats(){
+  const art=id=>D.arts.find(a=>a.id===id);
+  const aUpd=()=>{const a=art($('#aa').value)||{};$('#asz').style.display=a.has_sizes?'':'none';$('#acl').style.display=a.has_colors?'':'none'};
+  $('#aa').onchange=aUpd;aUpd();
+  const tUpd=async()=>{
+    const f=$('#tf').value;if(!D.stock[f])await loadDirStock(f);
+    const rows=combos(D.stock[f]||[],$('#ta').value).filter(r=>r.qty>0);
+    $('#tc').innerHTML=rows.length?rows.map((r,i)=>`<option value="${i}">${esc(comboLabel(r))} — ${r.qty} dispo</option>`).join(''):'<option value="">Aucun stock</option>';
+    tUpd.rows=rows;$('#tav').textContent=rows.length?rows.reduce((t,r)=>t+r.qty,0)+' pièces au total':'0 pièce';
+  };
+  $('#tf').onchange=tUpd;$('#ta').onchange=tUpd;$('#tt').value='PIK';tUpd();
+  $('#ago').onclick=async()=>{
+    const a=art($('#aa').value),qty=Math.round(+$('#aq').value||0),cost=Math.round(+$('#ac').value||0),sup=$('#af').value.trim();
+    if(!sup){$('#aerr').textContent='Indiquez le fournisseur.';return}
+    if(qty<=0){$('#aerr').textContent='Quantité invalide.';return}
+    const item={article_id:a.id,size:a.has_sizes?$('#aszv').value.trim():'',color:a.has_colors?$('#aclv').value.trim():'',qty,unit_cost:cost};
+    if((a.has_sizes&&!item.size)||(a.has_colors&&!item.color)){$('#aerr').textContent='Indiquez la pointure ou la couleur de cet article.';return}
+    try{await q(sb.rpc('record_purchase',{p_store:$('#as').value,p_supplier:sup,p_items:[item]}));toast('Achat enregistré : +'+qty+' '+a.name);D.stock[$('#as').value]=null;await Promise.all([loadMoves(),loadDirector()]);draw()}catch(e){$('#aerr').textContent='Erreur : '+(e.message||e)}
+  };
+  $('#tgo').onclick=async()=>{
+    const f=$('#tf').value,t=$('#tt').value,qty=Math.round(+$('#tq').value||0),r=(tUpd.rows||[])[+$('#tc').value];
+    if(f===t){$('#terr').textContent='Choisissez deux magasins différents.';return}
+    if(!r){$('#terr').textContent='Aucun stock à transférer pour cet article.';return}
+    if(qty<=0||qty>r.qty){$('#terr').textContent='Quantité invalide (maximum '+r.qty+').';return}
+    try{await q(sb.rpc('record_transfer',{p_from:f,p_to:t,p_items:[{article_id:r.article_id,size:r.size,color:r.color,qty}]}));toast('Transfert effectué : '+qty+' × '+(art(r.article_id)||{}).name);D.stock[f]=null;D.stock[t]=null;await loadMoves();draw()}catch(e){$('#terr').textContent='Erreur : '+(e.message||e)}
+  };
+  if(!MOVES_LOADED){MOVES_LOADED=true;loadMoves().then(()=>{if(S.tab==='achats')draw()})}
 }
 function dirVers(){
   return `<div class="card"><h2>${ic('wallet')}Versements des magasins</h2><table><tr><th>Date</th><th>Magasin</th><th>Mode</th><th>Référence</th><th class="n">Montant</th><th>Statut</th><th></th></tr>
