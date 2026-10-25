@@ -81,7 +81,7 @@ header.top .pill .ic{margin-right:4px;width:14px;height:14px;vertical-align:-2px
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 'use strict';
-const BUILD='1.9';
+const BUILD='2.0';
 const SB_URL='https://ehnptnwvwshmcaqrupru.supabase.co';
 const SB_KEY='sb_publishable_h3I7whuNEfbnfub_Q0eP6w_e77YMUqn';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
@@ -187,11 +187,13 @@ async function loadStores(){
   rows.forEach(r=>{STORES[r.id]=r.name;if(r.kind==='store'){if(r.active)SHOPS.push(r.id);if(!SHORT[r.id])SHORT[r.id]=r.name.replace(/\w\S*/g,w=>w[0]+w.slice(1).toLowerCase());if(!SCOL[r.id])SCOL[r.id]=EXTRA_COL[x++%EXTRA_COL.length]}});
   SHORT.CEN='Central';
 }
+let SET={seuil:20,seuil_cher:10,cher_min:30000,wave_central:'',om_central:''};
+async function loadSettings(){try{const r=await q(sb.from('settings').select('key,value'));r.forEach(x=>{SET[x.key]=x.value});LS.set('settings',SET)}catch(e){Object.assign(SET,LS.get('settings',{}))}}
 async function start(){
   $('#app').innerHTML='<div class="login"><div class="mu">Chargement…</div></div>';
   const {data:{session}}=await sb.auth.getSession();
   if(!session){loginScreen();return}
-  await loadStores();
+  await loadStores();await loadSettings();
   try{me=await cached('profile',async()=>q(sb.from('profiles').select('*').eq('id',session.user.id).single()))}
   catch(e){loginScreen('Profil introuvable. Contactez l’administrateur.');return}
   if(me.id!==session.user.id){me=await q(sb.from('profiles').select('*').eq('id',session.user.id).single());LS.set('profile',me)}
@@ -266,10 +268,11 @@ window.addEventListener('offline',paintNet);
 const mkey=l=>l.article_id+'|'+l.size+'|'+l.color;
 function artStock(id,es){return es.filter(r=>r.article_id===id).reduce((s,r)=>s+r.qty,0)}
 function drawCashier(){
-  const tabs=[['caisse',ic('shopping-cart')+'Caisse'],['journal',ic('receipt')+'Journal'],['stock',ic('package')+'Stock'],['livraisons',ic('truck')+'Livraisons'],['retours',ic('undo-2')+'Retours'],['cloture',ic('lock')+'Clôture']];
+  const tabs=[['caisse',ic('shopping-cart')+'Caisse'],['journal',ic('receipt')+'Journal'],['stock',ic('package')+'Stock'],['credits',ic('users')+'Crédits'],['livraisons',ic('truck')+'Livraisons'],['retours',ic('undo-2')+'Retours'],['cloture',ic('lock')+'Clôture']];
   let b='';
   if(S.tab==='caisse')b=viewCaisse();
   else if(S.tab==='livraisons')b=dirBons();
+  else if(S.tab==='credits')b=viewCredits();
   else if(S.tab==='retours')b=dirRetours();
   else if(S.tab==='journal')b=viewJournal();
   else if(S.tab==='stock')b=viewStock(effStock(),ARTS);
@@ -278,6 +281,7 @@ function drawCashier(){
   if(S.tab==='caisse')bindCaisse();
   if(S.tab==='stock')bindStock();
   if(S.tab==='livraisons')bindBons();
+  if(S.tab==='credits')bindCredits();
   if(S.tab==='retours')bindRetours();
   if(S.tab==='cloture')bindCloture();
 }
@@ -471,13 +475,15 @@ function subscribeRT(){
 }
 function drawDirector(){
   const central=me.role==='central';
-  const tabs=central?[['stock',ic('store')+'Stock du Central'],['central',ic('file-text')+'Factures aux magasins']]:[['apercu',ic('layout-dashboard')+'Tableau de bord'],['stock',ic('package')+'Stock'],['achats',ic('arrow-left-right')+'Achats / transferts'],['central',ic('store')+'Magasin Central'+(pendingVers()?` <span class="badge b-bad">${pendingVers()}</span>`:'')],['bons',ic('clipboard-list')+'Commandes / BL'],['depenses',ic('wallet')+'Dépenses'],['retours',ic('undo-2')+'Retours'],['import',ic('clipboard-list')+'Inventaire (import)'],['param',ic('settings')+'Paramètres']];
+  const tabs=central?[['stock',ic('store')+'Stock du Central'],['central',ic('file-text')+'Factures aux magasins']]:[['apercu',ic('layout-dashboard')+'Tableau de bord'],['stock',ic('package')+'Stock'],['achats',ic('arrow-left-right')+'Achats / transferts'],['central',ic('store')+'Magasin Central'+(pendingVers()?` <span class="badge b-bad">${pendingVers()}</span>`:'')],['bons',ic('clipboard-list')+'Commandes / BL'],['depenses',ic('wallet')+'Dépenses'],['credits',ic('users')+'Crédits clients'],['retours',ic('undo-2')+'Retours'],['stats',ic('trending-up')+'Statistiques'],['import',ic('clipboard-list')+'Inventaire (import)'],['param',ic('settings')+'Paramètres']];
   let b='';
   if(S.tab==='apercu')b=dirOverview();
   else if(S.tab==='central')b=dirCentral();
   else if(S.tab==='bons')b=dirBons();
   else if(S.tab==='retours')b=dirRetours();
   else if(S.tab==='param')b=dirParam();
+  else if(S.tab==='credits')b=viewCredits();
+  else if(S.tab==='stats')b=dirStats();
   else if(S.tab==='depenses')b=dirDepenses();
   else if(S.tab==='achats')b=dirAchats();
   else if(S.tab==='stock')b=dirStock();
@@ -488,6 +494,8 @@ function drawDirector(){
   if(S.tab==='bons')bindBons();
   if(S.tab==='retours')bindRetours();
   if(S.tab==='param')bindParam();
+  if(S.tab==='credits')bindCredits();
+  if(S.tab==='stats')bindStats();
   if(S.tab==='depenses')bindDepenses();
   if(S.tab==='achats')bindAchats();
   if(S.tab==='stock')bindDirStock();
@@ -977,13 +985,16 @@ function dirParam(){
   <div class="row" style="margin-top:12px"><div style="flex:1;min-width:90px"><label>Code (2 à 4 lettres)</label><input id="nsc" maxlength="4" placeholder="Ex. KAO" style="text-transform:uppercase"></div><div style="flex:3;min-width:180px"><label>Nom du nouveau magasin</label><input id="nsn" placeholder="Ex. MINANE KAOLACK"></div></div>
   <button class="btn" id="nsg" style="margin-top:10px">${ic('plus')}Ajouter le magasin</button><div class="err" id="nserr"></div>
   <p class="mu" style="font-size:12.5px;margin:8px 0 0">Un magasin désactivé disparaît des écrans mais son historique reste. Après l’ajout, créez son caissier ci-dessous et chargez son stock (onglet Inventaire).</p></div>
-  <div class="card"><h2>${ic('users')}Caissiers et comptes</h2><div class="tw"><table><thead><tr><th>Nom</th><th>Rôle</th><th>Magasin</th><th>État</th><th></th></tr></thead><tbody>${accounts.map(a=>`<tr><td><b>${esc(a.full_name)}</b></td><td>${a.role==='central'?'Magasin Central':'Caissier'}</td><td>${esc(STORES[a.store_id]||'')}</td><td><span class="badge ${a.active?'b-ok':'b-gr'}">${a.active?'actif':'désactivé'}</span></td><td class="n" style="white-space:nowrap"><button class="btn sm sec" data-pw="${a.id}">Nouveau mot de passe</button> <button class="btn sm sec" data-ac="${a.id}|${a.active?0:1}">${a.active?'Désactiver':'Réactiver'}</button></td></tr>`).join('')||'<tr><td colspan="5" class="mu">Aucun compte.</td></tr>'}</tbody></table></div>
+  <div class="card"><h2>${ic('users')}Caissiers et comptes</h2><div class="tw"><table><thead><tr><th>Nom</th><th>Rôle</th><th>Magasin</th><th>État</th><th></th></tr></thead><tbody>${accounts.map(a=>`<tr><td><b>${esc(a.full_name)}</b></td><td>${a.role==='central'?'Magasin Central':'Caissier'}</td><td>${esc(STORES[a.store_id]||'')}</td><td><span class="badge ${a.active?'b-ok':'b-gr'}">${a.active?'actif':'désactivé'}</span></td><td class="n" style="white-space:nowrap">${a.role==='cashier'&&a.active?`<select data-ts="${a.id}" style="width:auto;padding:5px"><option value="">Affecter à…</option>${SHOPS.filter(k=>k!==a.store_id).map(k=>`<option value="${k}">${esc(SHORT[k])}</option>`).join('')}</select> `:''}<button class="btn sm sec" data-pw="${a.id}">Nouveau mot de passe</button> <button class="btn sm sec" data-ac="${a.id}|${a.active?0:1}">${a.active?'Désactiver':'Réactiver'}</button></td></tr>`).join('')||'<tr><td colspan="5" class="mu">Aucun compte.</td></tr>'}</tbody></table></div>
   <div class="row" style="margin-top:12px"><div style="flex:2;min-width:160px"><label>Nom complet</label><input id="uname" placeholder="Ex. Awa Ndiaye"></div><div style="flex:2;min-width:160px"><label>Identifiant</label><input id="uid" autocapitalize="none" placeholder="Ex. hlm.caisse"></div><div style="flex:2;min-width:160px"><label>Mot de passe (8 caractères au moins)</label><input id="upw" type="text" autocomplete="off"></div><div style="flex:2;min-width:160px"><label>Magasin</label><select id="ust">${shopOpts}<option value="CEN">Magasin Central (compte Central)</option></select></div></div>
   <button class="btn" id="ugo" style="margin-top:10px">${ic('plus')}Créer le compte</button><div class="err" id="uerr"></div>
   <p class="mu" style="font-size:12.5px;margin:8px 0 0">Un seul caissier actif par magasin. Pour changer de caissier : désactivez l’ancien, puis créez le nouveau. L’identifiant de connexion sera <b>identifiant@minane-gestion.app</b>. Communiquez le mot de passe de vive voix.</p></div>
   <div class="card"><h2>${ic('users')}Vendeurs <small class="mu" style="font-weight:400">choisis à la caisse lors de chaque vente</small></h2><div class="tw"><table><thead><tr><th>Vendeur</th><th>Magasin</th><th></th></tr></thead><tbody>${vend.map(v=>`<tr><td><b>${esc(v.full_name)}</b></td><td>${esc(STORES[v.store_id]||v.store_id)}</td><td class="n"><span class="badge ${v.active?'b-ok':'b-gr'}">${v.active?'actif':'retiré'}</span> <button class="btn sm sec" data-va="${v.id}|${v.active?0:1}">${v.active?'Retirer':'Réactiver'}</button></td></tr>`).join('')||'<tr><td colspan="3" class="mu">Aucun vendeur.</td></tr>'}</tbody></table></div>
   <div class="row" style="margin-top:12px"><div style="flex:2;min-width:160px"><label>Nom du vendeur</label><input id="vn"></div><div style="flex:2;min-width:160px"><label>Magasin</label><select id="vs">${shopOpts}</select></div></div>
-  <button class="btn" id="vg" style="margin-top:10px">${ic('plus')}Ajouter le vendeur</button><div class="err" id="verr"></div></div>`;
+  <button class="btn" id="vg" style="margin-top:10px">${ic('plus')}Ajouter le vendeur</button><div class="err" id="verr"></div></div>
+  <div class="card"><h2>${ic('triangle-alert')}Alertes de stock <small class="mu" style="font-weight:400">réglées par la Direction</small></h2><div class="row"><div style="flex:1;min-width:130px"><label>Seuil général (pièces)</label><input id="sg" type="number" min="0" value="${SET.seuil}"></div><div style="flex:1;min-width:130px"><label>Article cher à partir de (F)</label><input id="sp" type="number" min="0" value="${SET.cher_min}"></div><div style="flex:1;min-width:130px"><label>Seuil article cher (pièces)</label><input id="sc" type="number" min="0" value="${SET.seuil_cher}"></div></div><button class="btn" id="ssv" style="margin-top:10px">${ic('check')}Enregistrer les seuils</button><p class="mu" style="font-size:12.5px;margin:8px 0 0">Une alerte apparaît quand le stock d’un article dans un magasin est inférieur ou égal à son seuil. Un seuil propre à un article (tableau plus bas) remplace ces valeurs.</p></div>
+  <div class="card"><h2>${ic('smartphone')}Numéros Wave et Orange Money du Magasin Central <small class="mu" style="font-weight:400">pour les versements des magasins</small></h2><div class="row"><div style="flex:1;min-width:150px"><label>N° Wave</label><input id="wn" inputmode="tel" value="${esc(SET.wave_central||'')}"></div><div style="flex:1;min-width:150px"><label>N° Orange Money</label><input id="won" inputmode="tel" value="${esc(SET.om_central||'')}"></div></div><button class="btn" id="wsv" style="margin-top:10px">${ic('check')}Enregistrer</button></div>
+  <div class="card"><h2>Seuil d’alerte par article <small class="mu" style="font-weight:400">laisser vide pour le calcul automatique</small></h2><div class="tw" style="max-height:420px;overflow-y:auto"><table><thead><tr><th>Article</th><th class="n">Prix</th><th>Seuil personnalisé</th></tr></thead><tbody>${D.arts.map(a=>`<tr><td>${esc(a.name)}<div class="mu" style="font-size:12px">${esc(a.id)}</div></td><td class="n">${fmt(a.price)}</td><td style="width:150px"><input type="number" min="0" data-th="${esc(a.id)}" placeholder="Auto" value="${a.threshold==null?'':a.threshold}"></td></tr>`).join('')||'<tr><td colspan="3" class="mu">Aucun article.</td></tr>'}</tbody></table></div></div>`;
 }
 function bindParam(){
   const refresh=async()=>{await loadStores();await loadDirector();draw()};
@@ -1005,7 +1016,94 @@ function bindParam(){
   document.querySelectorAll('[data-pw]').forEach(b=>b.onclick=async()=>{const pw=prompt('Nouveau mot de passe (8 caractères au moins) :');if(!pw)return;try{await adminCall({action:'set_password',user_id:b.dataset.pw,password:pw});toast('Mot de passe changé')}catch(e){toast('Erreur : '+e.message)}});
   document.querySelectorAll('[data-ac]').forEach(b=>b.onclick=async()=>{const [id,a]=b.dataset.ac.split('|');if(a==='0'&&!confirm('Désactiver ce compte ? La personne ne pourra plus se connecter.'))return;try{await adminCall({action:'set_active',user_id:id,active:a==='1'});await refresh()}catch(e){toast('Erreur : '+e.message)}});
   document.querySelectorAll('[data-va]').forEach(b=>b.onclick=async()=>{const [id,a]=b.dataset.va.split('|');try{await q(sb.from('vendors').update({active:a==='1'}).eq('id',id).select('id'));await refresh()}catch(e){toast('Erreur : '+e.message)}});
+  const sv=async(k,v)=>q(sb.from('settings').upsert({key:k,value:v,updated_at:new Date().toISOString()},{onConflict:'key'}).select('key'));
+  $('#ssv').onclick=async()=>{const g=+$('#sg').value,pr=+$('#sp').value,c=+$('#sc').value;if(!(g>=0)||!(pr>=0)||!(c>=0)){toast('Saisissez des nombres positifs.');return}try{await Promise.all([sv('seuil',Math.round(g)),sv('cher_min',Math.round(pr)),sv('seuil_cher',Math.round(c))]);await loadSettings();toast('Seuils enregistrés');await refresh()}catch(e){toast('Erreur : '+e.message)}};
+  $('#wsv').onclick=async()=>{try{await Promise.all([sv('wave_central',$('#wn').value.trim()),sv('om_central',$('#won').value.trim())]);await loadSettings();toast('Numéros enregistrés')}catch(e){toast('Erreur : '+e.message)}};
+  document.querySelectorAll('[data-th]').forEach(i=>i.onchange=async()=>{const v=i.value===''||isNaN(+i.value)?null:Math.max(0,Math.round(+i.value));try{await q(sb.from('articles').update({threshold:v}).eq('id',i.dataset.th).select('id'));const a=D.arts.find(x=>x.id===i.dataset.th);if(a)a.threshold=v;toast('Seuil enregistré');await loadDirector()}catch(e){toast('Erreur : '+e.message)}});
+  document.querySelectorAll('[data-ts]').forEach(sel=>sel.onchange=async()=>{
+    const to=sel.value;if(!to)return;const me2=D.profiles.find(p=>p.id===sel.dataset.ts),other=D.profiles.find(p=>p.store_id===to&&p.role==='cashier'&&p.active&&p.id!==me2.id);
+    if(other&&!confirm('Permuter '+me2.full_name+' ('+SHORT[me2.store_id]+') et '+other.full_name+' ('+SHORT[to]+') ?')){sel.value='';return}
+    try{const from=me2.store_id;if(other)await q(sb.from('profiles').update({store_id:from}).eq('id',other.id).select('id'));await q(sb.from('profiles').update({store_id:to}).eq('id',me2.id).select('id'));toast(me2.full_name+' est maintenant à '+SHORT[to]);await refresh()}catch(e){toast('Erreur : '+e.message)}});
   $('#vg').onclick=async()=>{const n=$('#vn').value.trim();if(!n){$('#verr').textContent='Indiquez le nom.';return}try{await q(sb.from('vendors').insert({store_id:$('#vs').value,full_name:n,active:true}).select('id'));toast('Vendeur ajouté');await refresh()}catch(e){$('#verr').textContent='Erreur : '+(e.message||e)}};
+}
+
+/* ---------- CRÉDITS CLIENTS ---------- */
+const CR={q:'',f:'open',mode:null,id:null};let CRED=[],CREM=[],CR_LOADED=false;
+async function loadCredits(){
+  CR_LOADED=true;
+  try{[CRED,CREM]=await Promise.all([q(sb.from('credits').select('*,sales(ticket_no,sold_at)').order('due_date',{ascending:true})),q(sb.from('credit_reminders').select('credit_id,via,created_at').order('created_at',{ascending:false}))])}catch(e){toast('Chargement impossible : '+(e.message||e))}
+}
+const crRest=c=>c.amount-c.paid;
+const crLast=c=>CREM.find(r=>r.credit_id===c.id);
+const ddiff=(a,b)=>Math.round((new Date(a+'T00:00:00Z')-new Date(b+'T00:00:00Z'))/864e5);
+function smsText(c){
+  return `Bonjour ${c.customer_name}, ici MINANE SHOP (${STORES[c.store_id]}). Il vous reste ${fmt(crRest(c))} à régler${c.due_date?' (échéance le '+dmyFull(c.due_date)+')':''}. Merci de passer nous voir${SET.wave_central?'':''} ou de régler par Wave / Orange Money. Merci de votre confiance.`;
+}
+const waUrl=(phone,text)=>{let d=String(phone||'').replace(/\D/g,'');if(d.length===9)d='221'+d;return 'https://wa.me/'+d+'?text='+encodeURIComponent(text)};
+function viewCredits(){
+  const today=dayStr(0),isD=me.role!=='cashier',open=CRED.filter(c=>crRest(c)>0),late=open.filter(c=>c.due_date&&c.due_date<today);
+  const debt=new Set(open.map(c=>c.customer_phone||c.customer_name));
+  const qq=CR.q.toLowerCase().replace(/\s/g,'');
+  const list=CRED.filter(c=>{const r=crRest(c);return (CR.f==='all'||(CR.f==='open'&&r>0)||(CR.f==='late'&&r>0&&c.due_date&&c.due_date<today)||(CR.f==='paid'&&r<=0))&&(!qq||(c.customer_name+(c.customer_phone||'')).toLowerCase().replace(/\s/g,'').includes(qq))});
+  const todo=open.filter(c=>{const lr=crLast(c),lrd=lr?lr.created_at.slice(0,10):null;if(!c.due_date)return false;const j=ddiff(c.due_date,today);if(j<0)return !lrd||ddiff(today,lrd)>=7;return j<=2&&(!lrd||lrd<dayStrFrom(c.due_date,-3))});
+  const row=c=>{const r=crRest(c),st=r<=0?['b-ok','Soldé']:(c.due_date&&c.due_date<today?['b-bad','En retard']:['b-wait','En cours']),lr=crLast(c);
+    return `<tr><td><b>${esc(c.customer_name)}</b><div class="mu" style="font-size:12px">${esc(c.customer_phone||'')}</div></td>${isD?`<td>${dot(c.store_id)}${esc(SHORT[c.store_id]||c.store_id)}</td>`:''}<td>${esc((c.sales||{}).ticket_no||'')}</td><td>${dmy(c.created_at.slice(0,10))}</td><td class="n">${fmt(c.amount)}</td><td class="n">${fmt(c.paid)}</td><td class="n"><b>${fmt(r)}</b></td><td>${c.due_date?dmy(c.due_date):'—'}</td><td><span class="badge ${st[0]}">${st[1]}</span></td><td class="mu" style="font-size:12px">${lr?dtFr(lr.created_at)+' · '+(lr.via==='whatsapp'?'WhatsApp':lr.via==='sms'?'SMS':'noté'):'—'}</td><td style="white-space:nowrap">${r>0?`<button class="btn sm" data-cash="${c.id}">Encaisser</button> <button class="btn sm sec" data-rem="${c.id}">Relancer</button>`:''}</td></tr>`};
+  const sel=CR.id&&CRED.find(c=>c.id===CR.id);let panel='';
+  if(sel&&crRest(sel)>0){
+    if(CR.mode==='cash')panel=`<div class="card" style="border-color:var(--g2)"><h2>${ic('banknote')}Encaisser un versement <small class="mu" style="font-weight:400">${esc(sel.customer_name)} · reste ${fmt(crRest(sel))}</small></h2><div class="row"><div style="flex:1"><label>Montant (F)</label><input id="cam" type="number" min="1" max="${crRest(sel)}" value="${crRest(sel)}"></div><div style="flex:1"><label>Mode</label><select id="cmo"><option value="cash">Espèces</option><option value="wave">Wave</option><option value="om">Orange Money</option></select></div></div><div class="row" style="margin-top:12px"><button class="btn" id="cok">${ic('check',18)}Enregistrer le versement</button><button class="btn sec" id="cnx">Annuler</button></div><div class="err" id="cerr2"></div></div>`;
+    else panel=`<div class="card" style="border-color:var(--g2)"><h2>${ic('smartphone')}Rappel au client <small class="mu" style="font-weight:400">${esc(sel.customer_name)} · reste ${fmt(crRest(sel))}</small></h2><label>Numéro du client</label><input id="rph" type="tel" value="${esc(sel.customer_phone||'')}"><label>Message</label><textarea id="rms" rows="4">${esc(smsText(sel))}</textarea><div class="row" style="margin-top:12px"><button class="btn" id="rwa">WhatsApp</button><button class="btn sec" id="rsm">SMS</button><button class="btn sec" id="rcp">Copier</button><button class="btn sec" id="rlg">Noter un rappel (sans envoi)</button><button class="btn sec" id="cnx">Fermer</button></div></div>`;
+  }
+  const rel=todo.length?`<div class="card"><h2>${ic('triangle-alert')}À relancer aujourd’hui <small class="mu" style="font-weight:400">${todo.length} client(s)</small></h2><div class="tw"><table><thead><tr><th>Client</th><th>Échéance</th><th class="n">Reste</th><th></th></tr></thead><tbody>${todo.map(c=>`<tr><td><b>${esc(c.customer_name)}</b><div class="mu" style="font-size:12px">${esc(c.customer_phone||'')}</div></td><td>${dmy(c.due_date)}${ddiff(c.due_date,today)<0?' <span class="badge b-bad">dépassée</span>':''}</td><td class="n"><b>${fmt(crRest(c))}</b></td><td><button class="btn sm" data-rem="${c.id}">Relancer</button></td></tr>`).join('')}</tbody></table></div></div>`:'';
+  return `<div class="kpi"><div><small>${ic('users')}Total dû par les clients</small><b>${fmt(sumBy(open,crRest))}</b><small>${debt.size} client(s) débiteur(s)</small></div><div><small>${ic('triangle-alert')}En retard</small><b style="color:var(--rd)">${fmt(sumBy(late,crRest))}</b><small>${late.length} crédit(s) échu(s)</small></div><div><small>${ic('banknote')}Déjà encaissé</small><b>${fmt(sumBy(open,c=>c.paid))}</b><small>sur crédits ouverts</small></div></div>
+  ${rel}${panel}<div class="card"><h2>${ic('users')}Crédits clients <small class="mu" style="font-weight:400">${isD?'tous les magasins':esc(STORES[me.store_id])}</small></h2><div class="row"><div style="flex:3;min-width:180px"><input id="crq" placeholder="Rechercher un client ou un numéro" value="${esc(CR.q)}"></div><div style="flex:1;min-width:130px"><select id="crf"><option value="open" ${CR.f==='open'?'selected':''}>Impayés</option><option value="late" ${CR.f==='late'?'selected':''}>En retard</option><option value="paid" ${CR.f==='paid'?'selected':''}>Soldés</option><option value="all" ${CR.f==='all'?'selected':''}>Tous</option></select></div></div>
+  <div class="tw" style="margin-top:10px"><table><thead><tr><th>Client</th>${isD?'<th>Magasin</th>':''}<th>Ticket</th><th>Date</th><th class="n">Total</th><th class="n">Payé</th><th class="n">Reste</th><th>Échéance</th><th>Statut</th><th>Dernier rappel</th><th></th></tr></thead><tbody>${list.map(row).join('')||`<tr><td colspan="11" class="mu">Aucun crédit.</td></tr>`}</tbody></table></div>
+  <p class="mu" style="font-size:12.5px;margin:10px 0 0">Pour vendre à crédit, utilisez « À crédit » dans la Caisse. Les rappels s’ouvrent dans WhatsApp ou l’application SMS du téléphone : rien n’est envoyé automatiquement.</p></div>`;
+}
+const dayStrFrom=(d,n)=>{const x=new Date(d+'T00:00:00Z');x.setUTCDate(x.getUTCDate()+n);return x.toISOString().slice(0,10)};
+function bindCredits(){
+  if(!CR_LOADED)loadCredits().then(()=>{if(S.tab==='credits')draw()});
+  $('#crq').oninput=()=>{CR.q=$('#crq').value;const pos=CR.q.length;draw();const e=$('#crq');e.focus();e.setSelectionRange(pos,pos)};
+  $('#crf').onchange=()=>{CR.f=$('#crf').value;draw()};
+  document.querySelectorAll('[data-cash]').forEach(b=>b.onclick=()=>{CR.id=b.dataset.cash;CR.mode='cash';draw();window.scrollTo(0,0)});
+  document.querySelectorAll('[data-rem]').forEach(b=>b.onclick=()=>{CR.id=b.dataset.rem;CR.mode='rem';draw();window.scrollTo(0,0)});
+  const x=CR.id&&CRED.find(c=>c.id===CR.id);
+  const cx=$('#cnx');if(cx)cx.onclick=()=>{CR.id=null;draw()};
+  const log=async via=>{try{await q(sb.from('credit_reminders').insert({credit_id:x.id,store_id:x.store_id,via}).select('id'));await loadCredits()}catch(e){toast('Rappel non noté : '+e.message)}};
+  if($('#cok'))$('#cok').onclick=async()=>{
+    const a=Math.round(+$('#cam').value||0);if(!(a>0)||a>crRest(x)){$('#cerr2').textContent='Montant invalide (maximum '+fmt(crRest(x))+').';return}
+    $('#cok').disabled=true;
+    try{await q(sb.from('credit_payments').insert({credit_id:x.id,store_id:x.store_id,amount:a,method:$('#cmo').value}).select('id'));CR.id=null;toast('Versement de '+fmt(a)+' enregistré');await Promise.all([loadCredits(),me.role==='cashier'?0:loadDirector()]);draw()}
+    catch(e){$('#cerr2').textContent='Erreur : '+(e.message||e);$('#cok').disabled=false}
+  };
+  if($('#rwa')){
+    $('#rwa').onclick=async()=>{const u=waUrl($('#rph').value,$('#rms').value);window.open(u,'_blank')||(location.href=u);await log('whatsapp');draw()};
+    $('#rsm').onclick=async()=>{await log('sms');location.href='sms:'+$('#rph').value.replace(/\s/g,'')+'?body='+encodeURIComponent($('#rms').value)};
+    $('#rcp').onclick=()=>{const t=$('#rms');try{navigator.clipboard.writeText(t.value).then(()=>toast('Message copié'),()=>{t.select();toast('Message sélectionné')})}catch(e){t.select()}};
+    $('#rlg').onclick=async()=>{await log('note');CR.id=null;toast('Rappel noté dans le suivi');draw()};
+  }
+}
+
+/* ---------- STATISTIQUES ---------- */
+let STAT={arts:[],cash:[],rets:[],for:null};
+async function loadStats(){
+  STAT.for=D.per;
+  const from=dayStr(+D.per-1)+'T00:00:00Z';
+  try{[STAT.arts,STAT.cash,STAT.rets]=await Promise.all([q(sb.rpc('stats_top_articles',{p_from:from,p_limit:8})),q(sb.rpc('stats_cashiers',{p_from:from})),q(sb.from('returns').select('id,amount,qty,kind,created_at').gte('created_at',from))])}catch(e){toast('Chargement impossible : '+(e.message||e))}
+}
+function bars(rows,fmtv){const mx=Math.max(1,...rows.map(r=>r.v));return rows.length?rows.map(r=>`<div style="display:flex;align-items:center;gap:10px;margin:7px 0"><div style="flex:0 0 38%;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.col?`<i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${r.col};margin-right:7px"></i>`:''}${esc(r.n)}</div><div style="flex:1;background:#eef2ef;border-radius:6px;height:16px"><div style="width:${Math.max(2,r.v/mx*100)}%;height:100%;border-radius:6px;background:${r.col||'var(--g2)'}"></div></div><div style="flex:0 0 auto;min-width:70px;text-align:right;font-weight:700;font-size:13px">${fmtv(r.v)}</div></div>`).join(''):'<p class="mu" style="font-size:13px">Aucune donnée sur la période.</p>'}
+function dirStats(){
+  const days=daysOf(+D.per),PL=D.per==='1'?'aujourd’hui':D.per+' jours';
+  const byS=SHOPS.map(k=>({n:STORES[k],v:sumBy(days,d=>recDay(d,k)),col:SCOL[k]})).sort((a,b)=>b.v-a.v);
+  const modes=[['Espèces','cash','#2e7d32'],['Wave','wave','#1e88e5'],['Orange Money','om','#ef6c00']].map(([n,k,c])=>({n,col:c,v:sumBy(D.summary.filter(r=>days.includes(r.day)),r=>+r[k])}));
+  const arts=STAT.arts.map(a=>({n:a.name,v:+a.qty})),rt=STAT.rets;
+  const cs=STAT.cash.map(c=>`<tr><td><b>${esc(c.full_name)}</b></td><td>${dot(c.store_id)}${esc(SHORT[c.store_id]||c.store_id)}</td><td class="n">${c.tickets}</td><td class="n">${fmt(+c.total)}</td><td class="n">${c.tickets?fmt(Math.round(+c.total/c.tickets)):'—'}</td></tr>`).join('')||'<tr><td colspan="5" class="mu">Aucune vente sur la période.</td></tr>';
+  return `${perBar()}<div class="grid2"><div class="card"><h2>Recettes par magasin <small class="mu" style="font-weight:400">${PL}</small></h2>${bars(byS,fmt)}</div><div class="card"><h2>Articles les plus vendus <small class="mu" style="font-weight:400">en pièces</small></h2>${bars(arts,v=>String(v))}</div></div>
+  <div class="grid2"><div class="card"><h2>Encaissements par mode <small class="mu" style="font-weight:400">${PL}</small></h2>${bars(modes,fmt)}</div><div class="card"><h2>Retours <small class="mu" style="font-weight:400">${PL}</small></h2><div class="kpi" style="grid-template-columns:1fr 1fr"><div><b>${rt.length}</b><small>retour(s)</small></div><div><b>${fmt(sumBy(rt,r=>r.amount))}</b><small>rendus aux clients</small></div></div></div></div>
+  <div class="card"><h2>Performance des caissiers <small class="mu" style="font-weight:400">${PL}</small></h2><div class="tw"><table><thead><tr><th>Caissier</th><th>Magasin</th><th class="n">Tickets</th><th class="n">Ventes</th><th class="n">Panier moyen</th></tr></thead><tbody>${cs}</tbody></table></div></div>`;
+}
+function bindStats(){
+  document.querySelectorAll('#per button').forEach(b=>b.onclick=()=>{D.per=b.dataset.p;draw()});
+  if(STAT.for!==D.per)loadStats().then(()=>{if(S.tab==='stats')draw()});
 }
 function dirStock(){
   const st=me.role==='central'?'CEN':D.store;
