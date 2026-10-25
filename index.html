@@ -18,8 +18,8 @@ header.top h1{font-size:16px;margin:0;flex:1;font-weight:700;line-height:1.2}
 header.top small{display:block;font-weight:400;opacity:.85;font-size:12px}
 .pill{border-radius:99px;padding:3px 10px;font-size:12px;font-weight:600;background:#ffffff26;white-space:nowrap}
 .pill.ok{background:#d6f0e0;color:#14532d}.pill.off{background:#ffe2c2;color:#7a3e00}.pill.bad{background:#ffd9d6;color:#7a1410}
-nav.tabs{display:flex;gap:4px;background:#fff;border-bottom:1px solid var(--bd);padding:0 8px;overflow-x:auto;position:sticky;top:52px;z-index:15}
-nav.tabs button{border:0;background:none;padding:12px 14px;font-weight:600;color:var(--mu);border-bottom:3px solid transparent;white-space:nowrap}
+nav.tabs{display:flex;flex-wrap:wrap;gap:2px 4px;background:#fff;border-bottom:1px solid var(--bd);padding:0 8px;position:sticky;top:52px;z-index:15}
+nav.tabs button{border:0;background:none;padding:11px 12px;font-weight:600;color:var(--mu);border-bottom:3px solid transparent;white-space:nowrap}
 nav.tabs button.on{color:var(--g);border-color:var(--g)}
 main{padding:12px;max-width:1200px;margin:0 auto}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:12px}
@@ -27,6 +27,7 @@ main{padding:12px;max-width:1200px;margin:0 auto}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .grid2{display:grid;grid-template-columns:1.6fr 1fr;gap:12px}
 @media(max-width:820px){.grid2{grid-template-columns:1fr}}
+@media(max-width:900px){nav.tabs{position:static;display:grid;grid-template-columns:repeat(4,1fr);gap:0;padding:0}nav.tabs button{padding:8px 2px;font-size:11px;line-height:1.15;display:flex;flex-direction:column;align-items:center;gap:3px;white-space:normal;text-align:center;border-bottom-width:3px}nav.tabs button .ic{margin:0;width:22px;height:22px}nav.tabs button .badge{position:absolute;margin:-4px 0 0 18px}}
 @media(max-width:600px){header.top .lbl{display:none}header.top .pill .ic{margin-right:0}header.top{gap:8px}header.top h1{min-width:0}}
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
 .art{background:#fff;border:1px solid var(--bd);border-radius:10px;padding:10px;text-align:left;display:flex;flex-direction:column;gap:4px;min-height:84px}
@@ -82,7 +83,7 @@ header.top .pill .ic{margin-right:4px;width:14px;height:14px;vertical-align:-2px
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 'use strict';
-const BUILD='2.3';
+const BUILD='2.4';
 const SB_URL='https://ehnptnwvwshmcaqrupru.supabase.co';
 const SB_KEY='sb_publishable_h3I7whuNEfbnfub_Q0eP6w_e77YMUqn';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
