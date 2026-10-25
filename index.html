@@ -83,7 +83,7 @@ header.top .pill .ic{margin-right:4px;width:14px;height:14px;vertical-align:-2px
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 'use strict';
-const BUILD='2.5';
+const BUILD='2.6';
 const SB_URL='https://ehnptnwvwshmcaqrupru.supabase.co';
 const SB_KEY='sb_publishable_h3I7whuNEfbnfub_Q0eP6w_e77YMUqn';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
@@ -503,7 +503,7 @@ function subscribeRT(){
 }
 function drawDirector(){
   const central=me.role==='central';
-  const tabs=central?[['stock',ic('store')+'Stock du Central'],['central',ic('file-text')+'Factures aux magasins']]:[['apercu',ic('layout-dashboard')+'Tableau de bord'],['stock',ic('package')+'Stock'],['achats',ic('arrow-left-right')+'Achats / transferts'],['central',ic('store')+'Magasin Central'+(pendingVers()?` <span class="badge b-bad">${pendingVers()}</span>`:'')],['bons',ic('clipboard-list')+'Commandes / BL'],['depenses',ic('wallet')+'Dépenses'],['credits',ic('users')+'Crédits clients'],['retours',ic('undo-2')+'Retours'],['stats',ic('trending-up')+'Statistiques'],['import',ic('clipboard-list')+'Inventaire (import)'],['param',ic('settings')+'Paramètres']];
+  const tabs=central?[['stock',ic('store')+'Stock du Central'],['central',ic('file-text')+'Factures aux magasins']]:[['apercu',ic('layout-dashboard')+'Tableau de bord'],['stock',ic('package')+'Stock'],['achats',ic('arrow-left-right')+'Achats / transferts'],['central',ic('store')+'Magasin Central'+(pendingVers()?` <span class="badge b-bad">${pendingVers()}</span>`:'')],['bons',ic('clipboard-list')+'Commandes / BL'],['depenses',ic('wallet')+'Dépenses'],['credits',ic('users')+'Crédits clients'],['retours',ic('undo-2')+'Retours'],['stats',ic('trending-up')+'Statistiques'],['import',ic('clipboard-list')+'Excel / CSV'],['param',ic('settings')+'Paramètres']];
   let b='';
   if(S.tab==='apercu')b=dirOverview();
   else if(S.tab==='central')b=dirCentral();
@@ -1156,7 +1156,7 @@ function bindDirStock(){
 
 /* ---------- IMPORT INVENTAIRE ---------- */
 const norm=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
-const ALIAS={ref:['reference','ref','code','codearticle','id','sku'],name:['designation','nom','article','libelle','produit','description'],cat:['categorie','famille','type','rayon'],price:['prix','prixvente','pv','prixdevente','price'],size:['pointure','taille','size'],color:['couleur','color','coloris'],qty:['quantite','qte','qty','stock']};
+const ALIAS={ref:['reference','ref','code','codearticle','id','sku'],name:['designation','nom','article','libelle','produit','description'],cat:['categorie','famille','type','rayon'],price:['prix','prixvente','pv','prixdevente','price','prixdetail'],wprice:['prixgros','prixdegros','prixgrossiste','pg','wholesale'],size:['pointure','taille','size'],color:['couleur','color','coloris'],qty:['quantite','qte','qty','stock']};
 function parseInv(rows){
   if(!rows.length)throw new Error('Fichier vide');
   const heads=Object.keys(rows[0]),map={};
@@ -1169,10 +1169,10 @@ function parseInv(rows){
     const id=(ref||'A-'+norm(name).toUpperCase().slice(0,24)).toUpperCase();
     const size=String(r[map.size]??'').trim(),color=String(r[map.color]??'').trim();
     const qty=Math.round(+String(r[map.qty]).replace(/\s/g,'').replace(',','.'));if(!Number.isFinite(qty)||qty<0)continue;
-    const price=Math.round(+String(r[map.price]??'').replace(/\s/g,'').replace(',','.'))||0;
+    const price=Math.round(+String(r[map.price]??'').replace(/\s/g,'').replace(',','.'))||0;const wp=map.wprice?(Math.round(+String(r[map.wprice]??'').replace(/\s/g,'').replace(',','.'))||0):0;
     let cat=norm(r[map.cat]);cat=cat.includes('sac')?'sacs':cat.includes('chauss')||cat.includes('soulier')||cat.includes('sandale')?'chaussures':size?'chaussures':cat?'autre':'sacs';
     const a=arts.get(id)||{id,name:name||id,category:cat,price,has_sizes:false,has_colors:false};
-    if(name)a.name=name;if(price)a.price=price;if(size)a.has_sizes=true;if(color)a.has_colors=true;arts.set(id,a);
+    if(name)a.name=name;if(price)a.price=price;if(wp)a.wholesale_price=wp;if(size)a.has_sizes=true;if(color)a.has_colors=true;arts.set(id,a);
     lines.push({article_id:id,size,color,counted_qty:qty});
   }
   return {arts:[...arts.values()],lines,map};
@@ -1188,10 +1188,79 @@ async function readBook(f){
   }
   return XLSX.read(buf,{type:'array'});
 }
+
+const EXP={from:'',to:'',fmt:'xlsx',busy:false};
+const pOf=(l,m)=>(l||[]).filter(p=>p.method===m).reduce((t,p)=>t+p.amount,0);
+const MET={cash:'Espèces',wave:'Wave',om:'Orange Money',credit:'Crédit'};
+async function expData(key){
+  const from=EXP.from||'2000-01-01',to=EXP.to||dayStr(0),a=from+'T00:00:00Z',b=to+'T23:59:59.999Z';
+  const st=id=>STORES[id]||id||'';
+  const arts=await qAll(()=>sb.from('articles').select('*').order('id')),am=new Map(arts.map(x=>[x.id,x]));
+  const an=id=>(am.get(id)||{name:id}).name;
+  if(key==='articles'){
+    const stock=await qAll(()=>sb.from('stock').select('*').order('store_id').order('article_id'));
+    return stock.map(r=>{const x=am.get(r.article_id)||{};return {'Magasin':st(r.store_id),'Référence':r.article_id,'Désignation':x.name||'','Catégorie':x.category||'','Pointure':r.size,'Couleur':r.color,'Quantité':r.qty,'Prix détail':x.price||0,'Prix de gros':x.wholesale_price||'','Valeur au prix détail':r.qty*(x.price||0)}});
+  }
+  if(key==='ventes'){
+    const sales=await qAll(()=>sb.from('sales').select('*,sale_items(*),sale_payments(*)').gte('sold_at',a).lte('sold_at',b).order('sold_at'));
+    const vn=new Map((D.vendors||[]).map(v=>[v.id,v.full_name])),out=[];
+    for(const s of sales){const pay=(s.sale_payments||[]).map(p=>(MET[p.method]||p.method)+' '+p.amount).join(' + ');
+      for(const i of (s.sale_items||[]))out.push({'Date':dtFr(s.sold_at),'Ticket':s.ticket_no,'Magasin':st(s.store_id),'Vendeur':vn.get(s.seller_id)||'','Client':s.customer_name||'','Référence':i.article_id,'Désignation':an(i.article_id),'Pointure':i.size,'Couleur':i.color,'Quantité':i.qty,'Prix unitaire':i.unit_price,'Montant ligne':i.qty*i.unit_price,'Total ticket':s.total,'Paiements du ticket':pay})}
+    return out;
+  }
+  if(key==='depenses'){
+    const d=await qAll(()=>sb.from('expenses').select('*').gte('day',from).lte('day',to).order('day'));
+    return d.map(e=>({'Date':e.day,'Magasin':st(e.store_id),'Catégorie':e.category,'Libellé':e.label,'Montant':e.amount}));
+  }
+  if(key==='credits'){
+    const d=await qAll(()=>sb.from('credits').select('*').gte('created_at',a).lte('created_at',b).order('created_at'));
+    return d.map(c=>({'Date':dtFr(c.created_at),'Magasin':st(c.store_id),'Client':c.customer_name,'Téléphone':c.customer_phone||'','Montant':c.amount,'Payé':c.paid,'Reste dû':c.amount-c.paid,'Échéance':c.due_date||''}));
+  }
+  if(key==='retours'){
+    const d=await qAll(()=>sb.from('returns').select('*').gte('created_at',a).lte('created_at',b).order('created_at'));
+    return d.map(r=>({'Date':dtFr(r.created_at),'N°':r.return_no,'Magasin':st(r.store_id),'Référence':r.article_id,'Désignation':an(r.article_id),'Pointure':r.size,'Couleur':r.color,'Quantité':r.qty,'Montant':r.amount,'Motif':r.reason||'','Type':r.kind||''}));
+  }
+  if(key==='versements'){
+    const d=await qAll(()=>sb.from('versements').select('*').gte('day',from).lte('day',to).order('day'));
+    return d.map(v=>({'Jour':v.day,'Payeur':v.client_name?v.client_name+' (grossiste)':st(v.store_id),'Mode':MET[v.method]||v.method,'Référence':v.reference||'','Montant':v.amount,'Statut':v.status==='confirmed'?'confirmé':v.status==='rejected'?'refusé':'à confirmer'}));
+  }
+  if(key==='factures'){
+    const d=await qAll(()=>sb.from('central_invoices').select('*,central_invoice_items(*)').gte('issued_at',a).lte('issued_at',b).order('issued_at')),out=[];
+    for(const f of d)for(const i of (f.central_invoice_items||[]))out.push({'Date':dtFr(f.issued_at),'Facture':f.invoice_no,'Destinataire':f.client_name?f.client_name+' (grossiste)':st(f.store_id),'Référence':i.article_id,'Désignation':an(i.article_id),'Pointure':i.size,'Couleur':i.color,'Quantité':i.qty,'Prix unitaire':i.unit_price,'Montant ligne':i.qty*i.unit_price,'Total facture':f.total});
+    return out;
+  }
+}
+const EXPS=[['articles','Articles et stock','tous les magasins, à ce jour'],['ventes','Ventes','une ligne par article vendu'],['depenses','Dépenses',''],['credits','Crédits clients',''],['retours','Retours',''],['versements','Versements et règlements',''],['factures','Factures du Central','']];
+function saveFile(name,rows,fmt){
+  const ws=XLSX.utils.json_to_sheet(rows.length?rows:[{'Information':'Aucune donnée sur cette période'}]);
+  if(fmt==='csv'){const t='\uFEFF'+XLSX.utils.sheet_to_csv(ws,{FS:';'});const u=URL.createObjectURL(new Blob([t],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=u;a.download=name+'.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)}
+  else{const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,name.slice(0,31));XLSX.writeFile(wb,name+'.xlsx')}
+}
+function expCard(){
+  return `<div class="card"><h2>${ic('download')}Exporter les données (Excel ou CSV)</h2>
+  <div class="mu" style="margin-bottom:8px">Pour garder une copie lisible chaque semaine. La période s'applique aux ventes, dépenses, crédits, retours, versements et factures. Le stock est celui du moment.</div>
+  <div class="row"><div style="flex:1"><label>Du</label><input type="date" id="exf" value="${EXP.from}"></div><div style="flex:1"><label>Au</label><input type="date" id="ext" value="${EXP.to}"></div><div style="flex:1"><label>Format</label><select id="exm"><option value="xlsx" ${EXP.fmt==='xlsx'?'selected':''}>Excel (.xlsx)</option><option value="csv" ${EXP.fmt==='csv'?'selected':''}>CSV (point-virgule)</option></select></div></div>
+  <table style="margin-top:10px"><tbody>${EXPS.map(e=>`<tr><td><b>${e[1]}</b>${e[2]?` <span class="mu" style="font-size:12px">${e[2]}</span>`:''}</td><td class="n"><button class="btn sm sec" data-ex="${e[0]}">${ic('download',14)}Télécharger</button></td></tr>`).join('')}</tbody></table>
+  <button class="btn big" id="exall" style="margin-top:12px">${ic('download',20)}Tout dans un seul classeur Excel</button><div class="err" id="exerr"></div></div>`;
+}
+function bindExport(){
+  const rd=()=>{EXP.from=$('#exf').value;EXP.to=$('#ext').value;EXP.fmt=$('#exm').value};
+  const stamp=()=>(EXP.to||dayStr(0));
+  document.querySelectorAll('[data-ex]').forEach(b=>b.onclick=async()=>{
+    rd();$('#exerr').textContent='';b.disabled=true;
+    try{const k=b.dataset.ex,rows=await expData(k);saveFile('Minane-'+(EXPS.find(e=>e[0]===k)[1].replace(/\s+/g,'-'))+'-'+stamp(),rows,EXP.fmt);toast(rows.length+' lignes exportées')}
+    catch(e){$('#exerr').textContent='Erreur : '+(e.message||e)}b.disabled=false});
+  $('#exall').onclick=async()=>{
+    rd();const b=$('#exall');b.disabled=true;$('#exerr').textContent='';
+    try{const wb=XLSX.utils.book_new();
+      for(const e of EXPS){const rows=await expData(e[0]);XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows.length?rows:[{'Information':'Aucune donnée sur cette période'}]),e[1].slice(0,31))}
+      XLSX.writeFile(wb,'Minane-Sauvegarde-'+stamp()+'.xlsx');toast('Classeur exporté')}
+    catch(e){$('#exerr').textContent='Erreur : '+(e.message||e)}b.disabled=false};
+}
 function dirImport(){
   const I=D.imp;
-  return `<div class="card"><h2>${ic('clipboard-list')}Charger un inventaire (Excel ou CSV)</h2>
-  <div class="mu" style="margin-bottom:8px">Colonnes reconnues : référence, désignation, catégorie, prix, pointure, couleur, quantité. Les quantités du fichier remplacent le stock du magasin choisi, pour les lignes présentes dans le fichier.</div>
+  return expCard()+`<div class="card"><h2>${ic('clipboard-list')}Charger un inventaire (Excel ou CSV)</h2>
+  <div class="mu" style="margin-bottom:8px">Colonnes reconnues : référence, désignation, catégorie, prix, prix de gros, pointure, couleur, quantité. Les quantités du fichier remplacent le stock du magasin choisi, pour les lignes présentes dans le fichier.</div>
   <label>Magasin concerné</label><select id="ist">${Object.keys(STORES).map(k=>`<option value="${k}" ${k===(D.istore||'SAN')?'selected':''}>${STORES[k]}</option>`).join('')}</select>
   <label>Fichier</label><input id="ifile" type="file" accept=".xlsx,.xls,.csv">
   <div id="imsg" class="err">${esc(D.imsg||'')}</div>
@@ -1199,6 +1268,7 @@ function dirImport(){
   <button class="btn big" style="margin-top:12px" id="iapply">${ic('upload',20)}Appliquer l’inventaire à ${esc(STORES[D.istore||'SAN'])}</button></div>`:''}</div>`;
 }
 function bindImport(){
+  bindExport();
   $('#ist').onchange=e=>{D.istore=e.target.value;draw()};
   $('#ifile').onchange=async e=>{
     const f=e.target.files[0];if(!f)return;D.imp=null;D.imsg='';
@@ -1211,7 +1281,7 @@ function bindImport(){
     if(!confirm('Appliquer '+I.lines.length+' lignes au stock de '+STORES[st]+' ?'))return;
     ap.disabled=true;ap.textContent='Envoi en cours…';
     try{
-      for(let i=0;i<I.arts.length;i+=200)await q(sb.from('articles').upsert(I.arts.slice(i,i+200).map(a=>({...a,updated_at:new Date().toISOString()})),{onConflict:'id'}).select('id'));
+      for(let i=0;i<I.arts.length;i+=200)await q(sb.from('articles').upsert(I.arts.slice(i,i+200).map(a=>({...a,...(I.map.wprice?{wholesale_price:a.wholesale_price||null}:{}),updated_at:new Date().toISOString()})),{onConflict:'id'}).select('id'));
       const cur=await qAll(()=>sb.from('stock').select('article_id,size,color,qty').eq('store_id',st).order('article_id'));
       const cm=new Map(cur.map(r=>[r.article_id+'|'+r.size+'|'+r.color,r.qty]));
       const inv=await q(sb.from('inventories').insert({store_id:st,note:'Import '+(D.impName||'')}).select('id').single());
