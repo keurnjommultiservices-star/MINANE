@@ -78,10 +78,11 @@ header.top .pill .ic{margin-right:4px;width:14px;height:14px;vertical-align:-2px
 <div id="app"></div>
 <div id="rcpt"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" crossorigin="anonymous"></script>
+<script src="qr.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 'use strict';
-const BUILD='2.0';
+const BUILD='2.1';
 const SB_URL='https://ehnptnwvwshmcaqrupru.supabase.co';
 const SB_KEY='sb_publishable_h3I7whuNEfbnfub_Q0eP6w_e77YMUqn';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
@@ -178,13 +179,19 @@ function loginScreen(msg){
   };
   $('#lgo').onclick=go;$('#lp').onkeydown=e=>{if(e.key==='Enter')go()};
 }
+const STORE_WA={};
+const waDigits=p=>{let d=String(p||'').replace(/\D/g,'');if(d.length===9)d='221'+d;return d};
+const waLink=p=>{const d=waDigits(p);return d.length>=11?'https://wa.me/'+d:''};
+function qrSvg(text,px){try{const qr=qrcode(0,'M');qr.addData(text);qr.make();const n=qr.getModuleCount(),m=2,sz=n+m*2;let d='';for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(qr.isDark(r,c))d+=`M${c+m} ${r+m}h1v1h-1z`;return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${sz} ${sz}" width="${px}" height="${px}" shape-rendering="crispEdges"><rect width="${sz}" height="${sz}" fill="#fff"/><path d="${d}" fill="#000"/></svg>`}catch(e){return ''}}
+const waQr=(st,px)=>{const l=waLink(STORE_WA[st]);return l?qrSvg(l,px):''};
 const STORE_ORDER=['SAN','MIR','HLM','TOU','PIK'],EXTRA_COL=['#c0662b','#5b6f1f','#a03a3a','#2d7f9e','#8a6d1a','#6b5b95'];
 async function loadStores(){
-  let rows;try{rows=await q(sb.from('stores').select('id,name,kind,active').order('id'));LS.set('stores',rows)}catch(e){rows=LS.get('stores',null)}
+  let rows;try{rows=await q(sb.from('stores').select('id,name,kind,active,whatsapp').order('id'));LS.set('stores',rows)}catch(e){rows=LS.get('stores',null)}
   if(!rows||!rows.length)return;
   rows=rows.slice().sort((a,b)=>{const i=STORE_ORDER.indexOf(a.id),j=STORE_ORDER.indexOf(b.id);return (i<0?99:i)-(j<0?99:j)||(a.id<b.id?-1:1)});
   Object.keys(STORES).forEach(k=>delete STORES[k]);SHOPS.length=0;let x=0;
-  rows.forEach(r=>{STORES[r.id]=r.name;if(r.kind==='store'){if(r.active)SHOPS.push(r.id);if(!SHORT[r.id])SHORT[r.id]=r.name.replace(/\w\S*/g,w=>w[0]+w.slice(1).toLowerCase());if(!SCOL[r.id])SCOL[r.id]=EXTRA_COL[x++%EXTRA_COL.length]}});
+  Object.keys(STORE_WA).forEach(k=>delete STORE_WA[k]);
+  rows.forEach(r=>{STORE_WA[r.id]=r.whatsapp||'';STORES[r.id]=r.name;if(r.kind==='store'){if(r.active)SHOPS.push(r.id);if(!SHORT[r.id])SHORT[r.id]=r.name.replace(/\w\S*/g,w=>w[0]+w.slice(1).toLowerCase());if(!SCOL[r.id])SCOL[r.id]=EXTRA_COL[x++%EXTRA_COL.length]}});
   SHORT.CEN='Central';
 }
 let SET={seuil:20,seuil_cher:10,cher_min:30000,wave_central:'',om_central:''};
@@ -360,7 +367,7 @@ function receipt(sale,lines,pays,vname){
   const lab={cash:'Espèces',wave:'Wave',om:'Orange Money',credit:'Crédit'};
   const html=`<div style="text-align:center"><img src="logo-ticket.png" alt="MINANE" style="width:46mm;height:auto"><br><b style="font-size:15px">MINANE SHOP</b><br>${esc(STORES[sale.store_id])}<br>${dtFr(sale.sold_at)}<br>Ticket ${esc(sale.ticket_no)}</div><hr>
   ${lines.map(l=>`${esc(l.name)}<br>&nbsp;&nbsp;${[l.size&&'P'+l.size,l.color].filter(Boolean).join(' ')} ${l.qty} x ${l.price} = <b>${l.qty*l.price}</b><br>`).join('')}<hr>
-  <b>TOTAL ${sale.total} F</b><br>${pays.map(p=>lab[p.method]+' : '+p.amount+' F').join('<br>')}<br>${vname?'Vendeur : '+esc(vname)+'<br>':''}${sale.customer_name?'Client : '+esc(sale.customer_name)+'<br>':''}<br><div style="text-align:center">Merci de votre visite</div>`;
+  <b>TOTAL ${sale.total} F</b><br>${pays.map(p=>lab[p.method]+' : '+p.amount+' F').join('<br>')}<br>${vname?'Vendeur : '+esc(vname)+'<br>':''}${sale.customer_name?'Client : '+esc(sale.customer_name)+'<br>':''}<br><div style="text-align:center">Merci de votre visite${waQr(sale.store_id,120)?`<br>Écrivez-nous sur WhatsApp<br>${esc(STORE_WA[sale.store_id])}<br>${waQr(sale.store_id,120)}`:''}</div>`;
   $('#rcpt').innerHTML=html;
   const m=modal(`<h2 style="margin-top:0">Vente enregistrée</h2><div class="mu" style="margin-bottom:10px">Ticket ${esc(sale.ticket_no)} · ${fmt(sale.total)}${navigator.onLine?'':' · sera envoyé au retour d’internet'}</div><button class="btn big" id="pr">${ic('printer',20)}Imprimer le reçu</button><button class="btn sec big" style="margin-top:8px" id="nw">${ic('plus')}Nouvelle vente</button>`);
   $('#pr',m).onclick=()=>window.print();$('#nw',m).onclick=()=>m.remove();
@@ -789,7 +796,7 @@ function printInvoice(i){
   const b=i.store_id?invPaid(i.store_id):(CCLI.find(c=>c.client_name===i.client_name)||{invoiced:0,paid:0});
   const rows=items.map(x=>`<tr><td>${esc(aname(x.article_id))}${[x.size&&' · P'+x.size,x.color&&' · '+x.color].filter(Boolean).join('')}</td><td class="r">${x.qty}</td><td class="r">${fmt(x.unit_price)}</td><td class="r">${fmt(x.qty*x.unit_price)}</td></tr>`).join('');
   const html=`<!doctype html><meta charset="utf-8"><title>${esc(i.invoice_no)}</title><style>body{font:14px Arial,sans-serif;margin:18mm;color:#111}table{border-collapse:collapse;width:100%;margin-top:18px}th,td{border:1px solid #bbb;padding:7px 9px;text-align:left}th{background:#f1f1f1}.r{text-align:right}.h{display:flex;justify-content:space-between;align-items:flex-start}.box{border:1px solid #bbb;padding:10px 14px}.sig{display:flex;justify-content:space-between;margin-top:60px}</style>
-  <div class="h"><div><img src="${location.origin}/logo.png" style="max-height:26mm;max-width:80mm"><br><b>MINANE SHOP — Magasin Central</b></div><div class="box"><b style="font-size:18px">FACTURE ${esc(i.invoice_no)}</b><br>${dtFr(i.issued_at)}</div></div>
+  <div class="h"><div><img src="${location.origin}/logo.png" style="max-height:26mm;max-width:80mm"><br><b>MINANE SHOP — Magasin Central</b></div><div class="box"><b style="font-size:18px">FACTURE ${esc(i.invoice_no)}</b><br>${dtFr(i.issued_at)}</div></div>${waQr('CEN',90)?`<div style="position:absolute;right:16mm;bottom:16mm;text-align:center;font-size:11px">${waQr('CEN',90)}<br>WhatsApp ${esc(STORE_WA.CEN)}</div>`:''}
   <p><b>Destinataire :</b> ${esc(iwho(i))}${i.client_phone?' · Tél. '+esc(i.client_phone):''}</p>
   <table><thead><tr><th>Désignation</th><th class="r">Qté</th><th class="r">Prix unitaire</th><th class="r">Montant</th></tr></thead><tbody>${rows}<tr><td colspan="3" class="r"><b>TOTAL</b></td><td class="r"><b>${fmt(i.total)} </b></td></tr></tbody></table>
   <p>Situation du magasin à ce jour : facturé ${fmt(b.invoiced)} · réglé ${fmt(b.paid)} · reste dû <b>${fmt(Math.max(0,b.invoiced-b.paid))}</b></p>
@@ -981,7 +988,8 @@ function dirParam(){
   const allStores=Object.keys(STORES).filter(k=>k!=='CEN'),shopOpts=SHOPS.map(k=>`<option value="${k}">${esc(STORES[k])}</option>`).join('');
   const accounts=D.profiles.filter(p=>['cashier','central'].includes(p.role)).sort((a,b)=>(a.store_id||'')<(b.store_id||'')?-1:1);
   const vend=D.vendors.slice().sort((a,b)=>(a.store_id+a.full_name)<(b.store_id+b.full_name)?-1:1);
-  return `<div class="card"><h2>${ic('store')}Magasins <small class="mu" style="font-weight:400">${SHOPS.length} actif(s)</small></h2><div class="tw"><table><thead><tr><th>Code</th><th>Nom</th><th>Caissier</th><th></th></tr></thead><tbody>${allStores.map(k=>{const act=SHOPS.includes(k);return `<tr><td>${act?dot(k):''}<b>${esc(k)}</b></td><td><input value="${esc(STORES[k])}" data-sn="${k}" style="min-width:160px"></td><td>${esc(act?cashierOf(k):'')}</td><td class="n"><span class="badge ${act?'b-ok':'b-gr'}">${act?'actif':'désactivé'}</span> <button class="btn sm sec" data-sa="${k}|${act?0:1}">${act?'Désactiver':'Réactiver'}</button></td></tr>`}).join('')}</tbody></table></div>
+  return `<div class="card"><h2>${ic('store')}Magasins <small class="mu" style="font-weight:400">${SHOPS.length} actif(s)</small></h2><div class="tw"><table><thead><tr><th>Code</th><th>Nom</th><th>WhatsApp du magasin</th><th>Caissier</th><th></th></tr></thead><tbody>${allStores.map(k=>{const act=SHOPS.includes(k);return `<tr><td>${act?dot(k):''}<b>${esc(k)}</b></td><td><input value="${esc(STORES[k])}" data-sn="${k}" style="min-width:160px"></td><td style="white-space:nowrap"><input value="${esc(STORE_WA[k]||'')}" data-wa="${k}" inputmode="tel" placeholder="77 000 00 00" style="width:130px"> ${waQr(k,0)?`<button class="btn sm sec" data-wq="${k}">QR</button>`:''}</td><td>${esc(act?cashierOf(k):'')}</td><td class="n"><span class="badge ${act?'b-ok':'b-gr'}">${act?'actif':'désactivé'}</span> <button class="btn sm sec" data-sa="${k}|${act?0:1}">${act?'Désactiver':'Réactiver'}</button></td></tr>`}).join('')}</tbody></table></div>
+  <div class="row" style="margin-top:12px;align-items:flex-end"><div style="flex:1;min-width:150px"><label>WhatsApp du Magasin Central</label><input id="wcen" inputmode="tel" value="${esc(STORE_WA.CEN||'')}" placeholder="77 000 00 00"></div><button class="btn sm sec" id="wcs">Enregistrer</button> ${STORE_WA.CEN?`<button class="btn sm sec" data-wq="CEN">QR du Central</button>`:''}</div>
   <div class="row" style="margin-top:12px"><div style="flex:1;min-width:90px"><label>Code (2 à 4 lettres)</label><input id="nsc" maxlength="4" placeholder="Ex. KAO" style="text-transform:uppercase"></div><div style="flex:3;min-width:180px"><label>Nom du nouveau magasin</label><input id="nsn" placeholder="Ex. MINANE KAOLACK"></div></div>
   <button class="btn" id="nsg" style="margin-top:10px">${ic('plus')}Ajouter le magasin</button><div class="err" id="nserr"></div>
   <p class="mu" style="font-size:12.5px;margin:8px 0 0">Un magasin désactivé disparaît des écrans mais son historique reste. Après l’ajout, créez son caissier ci-dessous et chargez son stock (onglet Inventaire).</p></div>
@@ -1000,6 +1008,10 @@ function bindParam(){
   const refresh=async()=>{await loadStores();await loadDirector();draw()};
   document.querySelectorAll('[data-sn]').forEach(i=>i.onchange=async()=>{const n=i.value.trim();if(!n){i.value=STORES[i.dataset.sn];return}try{await q(sb.from('stores').update({name:n}).eq('id',i.dataset.sn).select('id'));toast('Nom enregistré');await refresh()}catch(e){toast('Erreur : '+e.message)}});
   document.querySelectorAll('[data-sa]').forEach(b=>b.onclick=async()=>{const [id,a]=b.dataset.sa.split('|');if(a==='0'&&!confirm('Désactiver ce magasin ? Son historique est conservé.'))return;try{await q(sb.from('stores').update({active:a==='1'}).eq('id',id).select('id'));await refresh()}catch(e){toast('Erreur : '+e.message)}});
+  const saveWa=async(id,v)=>{const d=waDigits(v);if(v.trim()&&d.length<11){toast('Numéro invalide');return}try{await q(sb.from('stores').update({whatsapp:v.trim()||null}).eq('id',id).select('id'));toast('WhatsApp enregistré');await refresh()}catch(e){toast('Erreur : '+e.message)}};
+  document.querySelectorAll('[data-wa]').forEach(i=>i.onchange=()=>saveWa(i.dataset.wa,i.value));
+  $('#wcs').onclick=()=>saveWa('CEN',$('#wcen').value);
+  document.querySelectorAll('[data-wq]').forEach(b=>b.onclick=()=>{const id=b.dataset.wq;openDoc(`<div style="text-align:center;margin-top:30mm"><img src="${location.origin}/logo.png" style="max-height:30mm"><h2>${esc(STORES[id])}</h2><p style="font-size:20px">Écrivez-nous sur WhatsApp</p>${qrSvg(waLink(STORE_WA[id]),360)}<p style="font-size:22px"><b>${esc(STORE_WA[id])}</b></p></div>`,'QR WhatsApp '+id)});
   $('#nsg').onclick=async()=>{
     const id=$('#nsc').value.trim().toUpperCase(),name=$('#nsn').value.trim();
     if(!/^[A-Z]{2,4}$/.test(id)){$('#nserr').textContent='Code : 2 à 4 lettres.';return}
