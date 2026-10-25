@@ -83,7 +83,7 @@ header.top .pill .ic{margin-right:4px;width:14px;height:14px;vertical-align:-2px
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 'use strict';
-const BUILD='2.4';
+const BUILD='2.5';
 const SB_URL='https://ehnptnwvwshmcaqrupru.supabase.co';
 const SB_KEY='sb_publishable_h3I7whuNEfbnfub_Q0eP6w_e77YMUqn';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
@@ -492,9 +492,11 @@ async function loadDirector(){
 async function loadDirStock(st){
   D.stock[st]=await qAll(()=>sb.from('stock').select('article_id,size,color,qty').eq('store_id',st).order('article_id'));
 }
+document.addEventListener('pointerdown',()=>{window.__ptr=Date.now()},true);
 function subscribeRT(){
   if(rt)return;
-  const bump=()=>{clearTimeout(rtT);rtT=setTimeout(async()=>{await loadDirector();if(['apercu','central','depenses'].includes(S.tab)){draw()}},600)};
+  const busy=()=>{const a=document.activeElement;return (a&&/^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName))||Date.now()-(window.__ptr||0)<2500||document.querySelector('.modal')};
+  const bump=()=>{clearTimeout(rtT);rtT=setTimeout(async function go(){await loadDirector();if(!['apercu','central','depenses'].includes(S.tab))return;if(busy()){rtT=setTimeout(go,1500);return}draw()},600)};
   rt=sb.channel('direction');
   ['sales','versements','closures','store_status','expenses'].forEach(t=>rt.on('postgres_changes',{event:'*',schema:'public',table:t},bump));
   rt.subscribe();
