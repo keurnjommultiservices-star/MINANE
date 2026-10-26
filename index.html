@@ -84,7 +84,7 @@ header.top .pill .ic{margin-right:4px;width:14px;height:14px;vertical-align:-2px
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 'use strict';
-const BUILD='2.9.4';
+const BUILD='2.9.5';
 const SB_URL='https://ehnptnwvwshmcaqrupru.supabase.co';
 const SB_KEY='sb_publishable_h3I7whuNEfbnfub_Q0eP6w_e77YMUqn';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
@@ -1419,7 +1419,7 @@ function bindStats(){
 }
 function dirStock(){
   const st=me.role==='central'?'CEN':D.store;
-  return `${cycDir()}${me.role==='central'?'':`<div class="card"><label style="margin-top:0">Magasin</label><select id="dst">${Object.keys(STORES).map(k=>`<option value="${k}" ${k===st?'selected':''}>${STORES[k]}</option>`).join('')}</select></div>`}
+  return `${cycDir()}${me.role==='central'?'':`<div class="card"><label style="margin-top:0">Magasin</label><select id="dst">${Object.keys(STORES).filter(k=>k==='CEN'||SHOPS.includes(k)).map(k=>`<option value="${k}" ${k===st?'selected':''}>${STORES[k]}</option>`).join('')}</select></div>`}
   ${D.stock[st]?viewStock(D.stock[st],D.arts,esc(STORES[st])):'<div class="card mu">Chargement du stock…</div>'}`;
 }
 function bindDirStock(){
