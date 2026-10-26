@@ -84,7 +84,7 @@ header.top .pill .ic{margin-right:4px;width:14px;height:14px;vertical-align:-2px
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 'use strict';
-const BUILD='2.9.1';
+const BUILD='2.9.2';
 const SB_URL='https://ehnptnwvwshmcaqrupru.supabase.co';
 const SB_KEY='sb_publishable_h3I7whuNEfbnfub_Q0eP6w_e77YMUqn';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
@@ -406,6 +406,7 @@ function receiptText(sale,lines,pays,vname){
   lines.forEach(l=>L.push(l.name+(([l.size&&'P'+l.size,l.color].filter(Boolean).join(' '))?' ('+[l.size&&'P'+l.size,l.color].filter(Boolean).join(' ')+')':'')+' : '+l.qty+' x '+fmt(l.price)+' = '+fmt(l.qty*l.price)));
   L.push('');if(sale.discount>0)L.push('Remise : −'+fmt(sale.discount));
   L.push('*TOTAL : '+fmt(sale.total)+'*');pays.forEach(p=>L.push(lab[p.method]+' : '+fmt(p.amount)));
+  if(vname)L.push('Vendeur : '+vname);if(me&&me.full_name)L.push('Caissier : '+me.full_name);
   if(sale.customer_name)L.push('Client : '+sale.customer_name);
   L.push('','Merci de votre visite !');if(STORE_WA[sale.store_id])L.push('Une question ? WhatsApp : '+STORE_WA[sale.store_id]);
   return L.join('\n');
@@ -414,7 +415,7 @@ function receipt(sale,lines,pays,vname){
   const lab={cash:'Espèces',wave:'Wave',om:'Orange Money',credit:'Crédit'};
   const html=`<div style="text-align:center"><img src="logo-ticket.png" alt="MINANE" style="width:46mm;height:auto"><br><b style="font-size:15px">MINANE SHOP</b><br>${esc(STORES[sale.store_id])}<br>${dtFr(sale.sold_at)}<br>Ticket ${esc(sale.ticket_no)}${sale.kind==='gros'?'<br><b>VENTE EN GROS</b>':''}</div><hr>
   ${lines.map(l=>`${esc(l.name)}<br>&nbsp;&nbsp;${[l.size&&'P'+l.size,l.color].filter(Boolean).join(' ')} ${l.qty} x ${l.price} = <b>${l.qty*l.price}</b><br>`).join('')}<hr>
-  ${sale.discount>0?`Remise : −${sale.discount} F<br>`:''}<b>TOTAL ${sale.total} F</b><br>${pays.map(p=>lab[p.method]+' : '+p.amount+' F').join('<br>')}<br>${vname?'Vendeur : '+esc(vname)+'<br>':''}${sale.customer_name?'Client : '+esc(sale.customer_name)+'<br>':''}<br><div style="text-align:center">Merci de votre visite${waQr(sale.store_id,120)?`<br>Écrivez-nous sur WhatsApp<br>${esc(STORE_WA[sale.store_id])}<br>${waQr(sale.store_id,120)}`:''}</div>`;
+  ${sale.discount>0?`Remise : −${sale.discount} F<br>`:''}<b>TOTAL ${sale.total} F</b><br>${pays.map(p=>lab[p.method]+' : '+p.amount+' F').join('<br>')}<br>${vname?'Vendeur : '+esc(vname)+'<br>':''}${me&&me.full_name?'Caissier : '+esc(me.full_name)+'<br>':''}${sale.customer_name?'Client : '+esc(sale.customer_name)+'<br>':''}<br><div style="text-align:center">Merci de votre visite${waQr(sale.store_id,120)?`<br>Écrivez-nous sur WhatsApp<br>${esc(STORE_WA[sale.store_id])}<br>${waQr(sale.store_id,120)}`:''}</div>`;
   $('#rcpt').innerHTML=html;
   const m=modal(`<h2 style="margin-top:0">Vente enregistrée</h2><div class="mu" style="margin-bottom:10px">Ticket ${esc(sale.ticket_no)} · ${fmt(sale.total)}${navigator.onLine?'':' · sera envoyé au retour d’internet'}</div><button class="btn big" id="pr">${ic('printer',20)}Imprimer le reçu</button>
   <label>Ticket par WhatsApp (numéro du client)</label><div class="row" style="flex-wrap:nowrap;gap:8px"><input id="wph" inputmode="tel" placeholder="77 123 45 67" value="${esc(sale.customer_phone||'')}"><button class="btn" id="wsd" style="flex:none;background:#1faa59;white-space:nowrap">Envoyer</button></div><div id="werr" class="err"></div>
