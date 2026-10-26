@@ -72,7 +72,8 @@ header.top .pill .ic{margin-right:4px;width:14px;height:14px;vertical-align:-2px
 @keyframes bl{50%{opacity:.45}}.blink{animation:bl 1.3s infinite}
 .mu{color:var(--mu)}.r{text-align:right}
 #rcpt,#lbl{display:none}
-@media print{body>*:not(#rcpt):not(#lbl){display:none!important}#rcpt{display:block;font:12px/1.35 monospace;width:72mm;margin:0;color:#000}body.pl #rcpt{display:none!important}body.pl #lbl{display:block;color:#000;background:#fff}}
+@page{margin:0}
+@media print{body>*:not(#rcpt):not(#lbl){display:none!important}#rcpt{display:block;font:12px/1.35 monospace;width:72mm;margin:0;padding:3mm;box-sizing:border-box;color:#000}body.pl #rcpt{display:none!important}body.pl #lbl{display:block;color:#000;background:#fff}}
 .lbs{display:grid}.lbs.a4{grid-template-columns:repeat(3,1fr)}.lb{box-sizing:border-box;border:.2mm dashed #bbb;padding:1.5mm;font:9px/1.15 Arial,sans-serif;text-align:center;overflow:hidden;break-inside:avoid;background:#fff;color:#000}.lbs.a4 .lb{height:36mm}.lbs.roll .lb{width:50mm;height:30mm;border:none;page-break-after:always}.lb b{display:block;font-size:10px;max-height:2.3em;overflow:hidden}.lb i{font-style:normal;font-weight:700;font-size:12px}.lb svg{width:100%;height:11mm;display:block;margin:1mm 0 0}.lb small{font-size:8px}
 </style>
 </head>
@@ -84,7 +85,7 @@ header.top .pill .ic{margin-right:4px;width:14px;height:14px;vertical-align:-2px
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 'use strict';
-const BUILD='2.9.8';
+const BUILD='2.9.9';
 const SB_URL='https://ehnptnwvwshmcaqrupru.supabase.co';
 const SB_KEY='sb_publishable_h3I7whuNEfbnfub_Q0eP6w_e77YMUqn';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
@@ -1060,7 +1061,7 @@ function dirCentral(){
 function printDelivery(i){
   if(!i)return;const aname=id=>(D.arts.find(a=>a.id===id)||{name:id}).name,items=i.central_invoice_items||[],nb=items.reduce((t,x)=>t+x.qty,0);
   const rows=items.map(x=>`<tr><td>${esc(aname(x.article_id))}${[x.size&&' · P'+x.size,x.color&&' · '+x.color].filter(Boolean).join('')}</td><td class="r">${x.qty}</td><td></td></tr>`).join('');
-  const html=`<!doctype html><meta charset="utf-8"><title>BL ${esc(i.invoice_no)}</title><style>body{font:14px Arial,sans-serif;margin:18mm;color:#111}table{border-collapse:collapse;width:100%;margin-top:18px}th,td{border:1px solid #bbb;padding:8px 10px;text-align:left}th{background:#f1f1f1}.r{text-align:right}.h{display:flex;justify-content:space-between;align-items:flex-start}.box{border:1px solid #bbb;padding:10px 14px}.sig{display:flex;justify-content:space-between;margin-top:70px;gap:20px}.sig div{flex:1;border-top:1px solid #777;padding-top:6px;text-align:center}</style>
+  const html=`<!doctype html><meta charset="utf-8"><title>BL ${esc(i.invoice_no)}</title><style>@page{margin:0}body{font:14px Arial,sans-serif;margin:18mm;color:#111}table{border-collapse:collapse;width:100%;margin-top:18px}th,td{border:1px solid #bbb;padding:8px 10px;text-align:left}th{background:#f1f1f1}.r{text-align:right}.h{display:flex;justify-content:space-between;align-items:flex-start}.box{border:1px solid #bbb;padding:10px 14px}.sig{display:flex;justify-content:space-between;margin-top:70px;gap:20px}.sig div{flex:1;border-top:1px solid #777;padding-top:6px;text-align:center}</style>
   <div class="h"><div><img src="${location.origin}/logo.png" style="max-height:26mm;max-width:80mm"><br><b>MINANE SHOP — Magasin Central</b></div><div class="box"><b style="font-size:18px">BON DE LIVRAISON ${esc(i.invoice_no.replace(/^FC-/,'BL-'))}</b><br>${dtFr(i.issued_at)}<br><small>Facture ${esc(i.invoice_no)}</small></div></div>
   <p><b>Destinataire :</b> ${esc(iwho(i))}${i.client_phone?' · Tél. '+esc(i.client_phone):''}</p>
   <table><thead><tr><th>Désignation</th><th class="r">Qté livrée</th><th>Observation</th></tr></thead><tbody>${rows}<tr><td class="r"><b>TOTAL pièces</b></td><td class="r"><b>${nb}</b></td><td></td></tr></tbody></table>
@@ -1072,7 +1073,7 @@ function printInvoice(i){
   const aname=id=>(D.arts.find(a=>a.id===id)||{name:id}).name,items=i.central_invoice_items||[];
   const b=i.store_id?invPaid(i.store_id):(CCLI.find(c=>c.client_name===i.client_name)||{invoiced:0,paid:0});
   const rows=items.map(x=>`<tr><td>${esc(aname(x.article_id))}${[x.size&&' · P'+x.size,x.color&&' · '+x.color].filter(Boolean).join('')}</td><td class="r">${x.qty}</td><td class="r">${fmt(x.unit_price)}</td><td class="r">${fmt(x.qty*x.unit_price)}</td></tr>`).join('');
-  const html=`<!doctype html><meta charset="utf-8"><title>${esc(i.invoice_no)}</title><style>body{font:14px Arial,sans-serif;margin:18mm;color:#111}table{border-collapse:collapse;width:100%;margin-top:18px}th,td{border:1px solid #bbb;padding:7px 9px;text-align:left}th{background:#f1f1f1}.r{text-align:right}.h{display:flex;justify-content:space-between;align-items:flex-start}.box{border:1px solid #bbb;padding:10px 14px}.sig{display:flex;justify-content:space-between;margin-top:60px}</style>
+  const html=`<!doctype html><meta charset="utf-8"><title>${esc(i.invoice_no)}</title><style>@page{margin:0}body{font:14px Arial,sans-serif;margin:18mm;color:#111}table{border-collapse:collapse;width:100%;margin-top:18px}th,td{border:1px solid #bbb;padding:7px 9px;text-align:left}th{background:#f1f1f1}.r{text-align:right}.h{display:flex;justify-content:space-between;align-items:flex-start}.box{border:1px solid #bbb;padding:10px 14px}.sig{display:flex;justify-content:space-between;margin-top:60px}</style>
   <div class="h"><div><img src="${location.origin}/logo.png" style="max-height:26mm;max-width:80mm"><br><b>MINANE SHOP — Magasin Central</b></div><div class="box"><b style="font-size:18px">FACTURE ${esc(i.invoice_no)}</b><br>${dtFr(i.issued_at)}</div></div>${waQr('CEN',90)?`<div style="position:absolute;right:16mm;bottom:16mm;text-align:center;font-size:11px">${waQr('CEN',90)}<br>WhatsApp ${esc(STORE_WA.CEN)}</div>`:''}
   <p><b>Destinataire :</b> ${esc(iwho(i))}${i.client_phone?' · Tél. '+esc(i.client_phone):''}</p>
   <table><thead><tr><th>Désignation</th><th class="r">Qté</th><th class="r">Prix unitaire</th><th class="r">Montant</th></tr></thead><tbody>${rows}<tr><td colspan="3" class="r"><b>TOTAL</b></td><td class="r"><b>${fmt(i.total)} </b></td></tr></tbody></table>
@@ -1139,7 +1140,7 @@ const vlabel=x=>[x.size&&'P'+x.size,x.color].filter(Boolean).join(' ');
 const anameD=id=>((me&&me.role==='cashier'?ARTS:D.arts).find(a=>a.id===id)||{name:id}).name;
 function openDoc(html,title,w){
   w=w||window.open('','_blank');if(!w){toast('Autorisez les fenêtres pour imprimer.');return}
-  w.document.write(`<!doctype html><meta charset="utf-8"><title>${esc(title)}</title><style>body{font:14px Arial,sans-serif;margin:16mm;color:#111}table{border-collapse:collapse;width:100%;margin-top:16px}th,td{border:1px solid #bbb;padding:7px 9px;text-align:left}th{background:#f1f1f1}.r{text-align:right}.h{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}.box{border:1px solid #bbb;padding:10px 14px}.two{display:flex;gap:16px;margin-top:16px}.two .box{flex:1}.sig{display:flex;justify-content:space-between;margin-top:60px}.ft{margin-top:30px;color:#777;font-size:11px}</style>${html}<script>onload=()=>setTimeout(()=>print(),400)<\/script>`);w.document.close();
+  w.document.write(`<!doctype html><meta charset="utf-8"><title>${esc(title)}</title><style>@page{margin:0}body{font:14px Arial,sans-serif;margin:16mm;color:#111}table{border-collapse:collapse;width:100%;margin-top:16px}th,td{border:1px solid #bbb;padding:7px 9px;text-align:left}th{background:#f1f1f1}.r{text-align:right}.h{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}.box{border:1px solid #bbb;padding:10px 14px}.two{display:flex;gap:16px;margin-top:16px}.two .box{flex:1}.sig{display:flex;justify-content:space-between;margin-top:60px}.ft{margin-top:30px;color:#777;font-size:11px}</style>${html}<script>onload=()=>setTimeout(()=>print(),400)<\/script>`);w.document.close();
 }
 function docHtml(o,bl){
   const isBl=!!bl,head=`<div class="h"><div><img src="${location.origin}/logo.png" style="max-height:26mm;max-width:80mm"><br><b>MINANE SHOP</b><br>${esc(STORES[o.store_id])}</div><div class="box"><b style="font-size:18px">${isBl?'BON DE LIVRAISON':'BON DE COMMANDE'}</b><br>N° <b>${esc(isBl?bl.bl_no:o.po_no)}</b><br>Date : ${dtFr(isBl?bl.created_at:o.created_at)}${!isBl&&o.due_date?'<br>Livraison souhaitée : '+dmyFull(o.due_date):''}${isBl?'<br>Bon de commande : '+esc(o.po_no):''}</div></div>
