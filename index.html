@@ -84,7 +84,7 @@ header.top .pill .ic{margin-right:4px;width:14px;height:14px;vertical-align:-2px
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 'use strict';
-const BUILD='2.9.3';
+const BUILD='2.9.4';
 const SB_URL='https://ehnptnwvwshmcaqrupru.supabase.co';
 const SB_KEY='sb_publishable_h3I7whuNEfbnfub_Q0eP6w_e77YMUqn';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
@@ -109,6 +109,7 @@ async function qAll(mk){let out=[],from=0;for(;;){const d=await q(mk().range(fro
 async function cached(key,fn){try{const v=await fn();LS.set(key,v);return v}catch(e){const c=LS.get(key,null);if(c==null)throw e;return c}}
 
 let me=null,S={tab:'caisse',cart:[],search:'',gros:false};
+const isView=()=>!!me&&me.role==='view'+'er';
 const grosOk=()=>!!me&&Array.isArray(SET.gros_stores)&&SET.gros_stores.includes(me.store_id);
 const unitPrice=a=>(S.gros&&grosOk()&&a.wholesale_price)?a.wholesale_price:a.price;
 let ARTS=[],STK=[],VEND=[],DAYSALES=[],DAYVERS=[],DAYCLOS=null;
@@ -214,7 +215,7 @@ async function start(){
   else{S.tab=me.role==='central'?'stock':'apercu';await loadDirector()}
   draw();
   if(me.role==='cashier'){setInterval(()=>syncQueue(),20000);setInterval(beat,30000);beat()}
-  if(me.role==='director'||me.role==='admin'){setInterval(()=>{loadDirector().then(()=>{if(S.tab==='apercu'||S.tab==='central')draw()})},60000);subscribeRT()}
+  if(me.role==='director'||me.role==='admin'||me.role==='viewer'){setInterval(()=>{loadDirector().then(()=>{if(S.tab==='apercu'||S.tab==='central')draw()})},60000);subscribeRT()}
 }
 async function logout(){if(getQ().length&&!confirm('Des ventes ne sont pas encore envoyées. Se déconnecter quand même ?'))return;await sb.auth.signOut();me=null;loginScreen()}
 
@@ -247,7 +248,7 @@ function paintNet(){
   else{el.className='pill ok';el.textContent='En ligne'}
 }
 function shell(tabs,body){
-  const who=me.role==='cashier'?STORES[me.store_id]:me.role==='central'?STORES.CEN:'Direction';
+  const who=me.role==='cashier'?STORES[me.store_id]:me.role==='central'?STORES.CEN:me.role==='viewer'?'Consultation':'Direction';
   return `<header class="top"><img class="hl" src="logo.png" alt="Minane"><h1>${esc(who)}<small>${esc(me.full_name)}</small></h1><span id="net" class="pill ok">En ligne</span><button class="pill" id="pw" style="border:0;color:#fff">${ic('key-round',14)}<span class="lbl">Mot de passe</span></button><button class="pill" id="lo" style="border:0;color:#fff">${ic('log-out',14)}<span class="lbl">Quitter</span></button></header>
   <nav class="tabs">${tabs.map(([k,l])=>`<button data-tab="${k}" class="${S.tab===k?'on':''}">${l}</button>`).join('')}</nav><main>${body}</main>`;
 }
@@ -656,6 +657,7 @@ function subscribeRT(){
 function drawDirector(){
   const central=me.role==='central';
   const tabs=central?[['stock',ic('store')+'Stock du Central'],['central',ic('file-text')+'Factures aux magasins']]:[['apercu',ic('layout-dashboard')+'Tableau de bord'],['stock',ic('package')+'Stock'+(cycPending().length?` <span class="badge b-bad">${cycPending().length}</span>`:'')],['achats',ic('arrow-left-right')+'Achats / transferts'],['central',ic('store')+'Magasin Central'+(pendingVers()+recvOpen().length?` <span class="badge b-bad">${pendingVers()+recvOpen().length}</span>`:'')],['bons',ic('clipboard-list')+'Commandes / BL'],['depenses',ic('wallet')+'Dépenses'],['credits',ic('users')+'Crédits clients'],['retours',ic('undo-2')+'Retours'],['stats',ic('trending-up')+'Statistiques'],['import',ic('clipboard-list')+'Excel / CSV'],['param',ic('settings')+'Paramètres']];
+  if(isView()){const ok=['apercu','stock','central','credits','depenses','stats','param'];for(let k=tabs.length-1;k>=0;k--)if(!ok.includes(tabs[k][0]))tabs.splice(k,1)}
   let b='';
   if(S.tab==='apercu')b=dirOverview();
   else if(S.tab==='central')b=dirCentral();
@@ -1249,17 +1251,21 @@ async function adminCall(body){
   if(r.data&&r.data.error)throw new Error(r.data.error);
   return r.data;
 }
+function priceRows(q){const t=(q||'').trim().toLowerCase();const L=D.arts.filter(a=>!t||(a.name+' '+a.id).toLowerCase().includes(t)).slice(0,40);return L.map(a=>`<tr><td><b>${esc(a.name)}</b><br><small class="mu">${esc(a.id)}</small></td><td class="n"><input type="number" inputmode="numeric" min="0" style="width:110px" value="${a.price??''}" data-pp="${esc(a.id)}|price"></td><td class="n"><input type="number" inputmode="numeric" min="0" style="width:110px" value="${a.wholesale_price??''}" data-pp="${esc(a.id)}|wholesale_price"></td></tr>`).join('')||'<tr><td colspan="3" class="mu">Aucun article.</td></tr>'}
+function priceCard(){return `<div class="card"><h2>${ic('tag')}Prix de vente <small class="mu" style="font-weight:400">détail et gros, enregistré dès la saisie</small></h2><input id="pq" placeholder="Rechercher un article (nom ou référence)" style="margin-bottom:10px"><div class="tw"><table><thead><tr><th>Article</th><th class="n">Prix détail (F)</th><th class="n">Prix gros (F)</th></tr></thead><tbody id="plist">${priceRows('')}</tbody></table></div><div class="mu" style="font-size:12.5px;margin-top:8px">40 premiers résultats affichés : utilisez la recherche pour trouver un article. Le nouveau prix s’applique aux prochaines ventes ; les tickets déjà émis ne changent pas.</div></div>`}
+function bindPrices(){const pq=$('#pq');if(!pq)return;const bind=()=>document.querySelectorAll('[data-pp]').forEach(i=>i.onchange=async()=>{const [id,f]=i.dataset.pp.split('|'),raw=i.value.trim(),v=raw===''?null:Math.round(+raw);if(f==='price'&&(v==null||!(v>=0))){toast('Prix invalide');return}if(v!=null&&!(v>=0)){toast('Prix invalide');return}try{await q(sb.from('articles').update({[f]:v}).eq('id',id).select('id'));const a=D.arts.find(x=>x.id===id);if(a)a[f]=v;toast('Prix enregistré')}catch(e){toast('Erreur : '+(e.message||e))}});bind();pq.oninput=()=>{$('#plist').innerHTML=priceRows(pq.value);bind()}}
 function dirParam(){
+  if(isView())return priceCard();
   const allStores=Object.keys(STORES).filter(k=>k!=='CEN'),shopOpts=SHOPS.map(k=>`<option value="${k}">${esc(STORES[k])}</option>`).join('');
-  const accounts=D.profiles.filter(p=>['cashier','central'].includes(p.role)||(p.role==='admin'&&me.role==='director'&&p.id!==me.id)).sort((a,b)=>(a.store_id||'')<(b.store_id||'')?-1:1);
+  const accounts=D.profiles.filter(p=>['cashier','central'].includes(p.role)||((p.role==='admin'||p.role==='viewer')&&me.role==='director'&&p.id!==me.id)).sort((a,b)=>(a.store_id||'')<(b.store_id||'')?-1:1);
   const vend=D.vendors.slice().sort((a,b)=>(a.store_id+a.full_name)<(b.store_id+b.full_name)?-1:1);
   return `<div class="card"><h2>${ic('store')}Magasins <small class="mu" style="font-weight:400">${SHOPS.length} actif(s)</small></h2><div class="tw"><table><thead><tr><th>Code</th><th>Nom</th><th>WhatsApp du magasin</th><th>Caissier</th><th></th></tr></thead><tbody>${allStores.map(k=>{const act=SHOPS.includes(k);return `<tr><td>${act?dot(k):''}<b>${esc(k)}</b></td><td><input value="${esc(STORES[k])}" data-sn="${k}" style="min-width:160px"></td><td style="white-space:nowrap"><input value="${esc(STORE_WA[k]||'')}" data-wa="${k}" inputmode="tel" placeholder="77 000 00 00" style="width:130px"> ${waQr(k,0)?`<button class="btn sm sec" data-wq="${k}">QR</button>`:''}</td><td>${esc(act?cashierOf(k):'')}</td><td class="n"><span class="badge ${act?'b-ok':'b-gr'}">${act?'actif':'désactivé'}</span> <button class="btn sm sec" data-sa="${k}|${act?0:1}">${act?'Désactiver':'Réactiver'}</button></td></tr>`}).join('')}</tbody></table></div>
   <div class="row" style="margin-top:12px;align-items:flex-end"><div style="flex:1;min-width:150px"><label>WhatsApp du Magasin Central</label><input id="wcen" inputmode="tel" value="${esc(STORE_WA.CEN||'')}" placeholder="77 000 00 00"></div><button class="btn sm sec" id="wcs">Enregistrer</button> ${STORE_WA.CEN?`<button class="btn sm sec" data-wq="CEN">QR du Central</button>`:''}</div>
   <div class="row" style="margin-top:12px"><div style="flex:1;min-width:90px"><label>Code (2 à 4 lettres)</label><input id="nsc" maxlength="4" placeholder="Ex. KAO" style="text-transform:uppercase"></div><div style="flex:3;min-width:180px"><label>Nom du nouveau magasin</label><input id="nsn" placeholder="Ex. MINANE KAOLACK"></div></div>
   <button class="btn" id="nsg" style="margin-top:10px">${ic('plus')}Ajouter le magasin</button><div class="err" id="nserr"></div>
   <p class="mu" style="font-size:12.5px;margin:8px 0 0">Un magasin désactivé disparaît des écrans mais son historique reste. Après l’ajout, créez son caissier ci-dessous et chargez son stock (onglet Inventaire).</p></div>
-  <div class="card"><h2>${ic('users')}Caissiers et comptes</h2><div class="tw"><table><thead><tr><th>Nom</th><th>Rôle</th><th>Magasin</th><th>État</th><th></th></tr></thead><tbody>${accounts.map(a=>`<tr><td><b>${esc(a.full_name)}</b></td><td>${a.role==='central'?'Magasin Central':a.role==='admin'?'Direction':'Caissier'}</td><td>${esc(STORES[a.store_id]||'')}</td><td><span class="badge ${a.active?'b-ok':'b-gr'}">${a.active?'actif':'désactivé'}</span></td><td class="n" style="white-space:nowrap">${a.role==='cashier'&&a.active?`<select data-ts="${a.id}" style="width:auto;padding:5px"><option value="">Affecter à…</option>${SHOPS.filter(k=>k!==a.store_id).map(k=>`<option value="${k}">${esc(SHORT[k])}</option>`).join('')}</select> `:''}<button class="btn sm sec" data-pw="${a.id}">Nouveau mot de passe</button> <button class="btn sm sec" data-ac="${a.id}|${a.active?0:1}">${a.active?'Désactiver':'Réactiver'}</button></td></tr>`).join('')||'<tr><td colspan="5" class="mu">Aucun compte.</td></tr>'}</tbody></table></div>
-  <div class="row" style="margin-top:12px"><div style="flex:2;min-width:160px"><label>Nom complet</label><input id="uname" placeholder="Ex. Awa Ndiaye"></div><div style="flex:2;min-width:160px"><label>Identifiant</label><input id="uid" autocapitalize="none" placeholder="Ex. hlm.caisse"></div><div style="flex:2;min-width:160px"><label>Mot de passe (8 caractères au moins)</label><input id="upw" type="text" autocomplete="off"></div><div style="flex:2;min-width:160px"><label>Magasin</label><select id="ust">${shopOpts}<option value="CEN">Magasin Central (compte Central)</option><option value="DIR">Direction — mêmes droits que le Directeur</option></select></div></div>
+  <div class="card"><h2>${ic('users')}Caissiers et comptes</h2><div class="tw"><table><thead><tr><th>Nom</th><th>Rôle</th><th>Magasin</th><th>État</th><th></th></tr></thead><tbody>${accounts.map(a=>`<tr><td><b>${esc(a.full_name)}</b></td><td>${a.role==='central'?'Magasin Central':a.role==='admin'?'Direction':a.role==='viewer'?'Consultation':'Caissier'}</td><td>${esc(STORES[a.store_id]||'')}</td><td><span class="badge ${a.active?'b-ok':'b-gr'}">${a.active?'actif':'désactivé'}</span></td><td class="n" style="white-space:nowrap">${a.role==='cashier'&&a.active?`<select data-ts="${a.id}" style="width:auto;padding:5px"><option value="">Affecter à…</option>${SHOPS.filter(k=>k!==a.store_id).map(k=>`<option value="${k}">${esc(SHORT[k])}</option>`).join('')}</select> `:''}<button class="btn sm sec" data-pw="${a.id}">Nouveau mot de passe</button> <button class="btn sm sec" data-ac="${a.id}|${a.active?0:1}">${a.active?'Désactiver':'Réactiver'}</button></td></tr>`).join('')||'<tr><td colspan="5" class="mu">Aucun compte.</td></tr>'}</tbody></table></div>
+  <div class="row" style="margin-top:12px"><div style="flex:2;min-width:160px"><label>Nom complet</label><input id="uname" placeholder="Ex. Awa Ndiaye"></div><div style="flex:2;min-width:160px"><label>Identifiant</label><input id="uid" autocapitalize="none" placeholder="Ex. hlm.caisse"></div><div style="flex:2;min-width:160px"><label>Mot de passe (8 caractères au moins)</label><input id="upw" type="text" autocomplete="off"></div><div style="flex:2;min-width:160px"><label>Magasin</label><select id="ust">${shopOpts}<option value="CEN">Magasin Central (compte Central)</option><option value="DIR">Direction — mêmes droits que le Directeur</option><option value="VIEW">Consultation — voit tout, modifie les prix</option></select></div></div>
   <button class="btn" id="ugo" style="margin-top:10px">${ic('plus')}Créer le compte</button><div class="err" id="uerr"></div>
   <p class="mu" style="font-size:12.5px;margin:8px 0 0">Un seul caissier actif par magasin. Pour changer de caissier : désactivez l’ancien, puis créez le nouveau. Le caissier tape seulement l’identifiant (ex. <b>san.caisse</b>) : le suffixe @minane-gestion.app est ajouté automatiquement. Communiquez le mot de passe de vive voix.</p></div>
   <div class="card"><h2>${ic('users')}Vendeurs <small class="mu" style="font-weight:400">choisis à la caisse lors de chaque vente</small></h2><div class="tw"><table><thead><tr><th>Vendeur</th><th>Magasin</th><th></th></tr></thead><tbody>${vend.map(v=>`<tr><td><b>${esc(v.full_name)}</b></td><td>${esc(STORES[v.store_id]||v.store_id)}</td><td class="n"><span class="badge ${v.active?'b-ok':'b-gr'}">${v.active?'actif':'retiré'}</span> <button class="btn sm sec" data-va="${v.id}|${v.active?0:1}">${v.active?'Retirer':'Réactiver'}</button></td></tr>`).join('')||'<tr><td colspan="3" class="mu">Aucun vendeur.</td></tr>'}</tbody></table></div>
@@ -1275,6 +1281,7 @@ function dirParam(){
   <div class="card"><h2>Seuil d’alerte par article <small class="mu" style="font-weight:400">laisser vide pour le calcul automatique</small></h2><div class="tw" style="max-height:420px;overflow-y:auto"><table><thead><tr><th>Article</th><th class="n">Prix</th><th>Prix d’achat (F)</th><th class="n">Marge</th><th>Seuil personnalisé</th></tr></thead><tbody>${D.arts.map(a=>`<tr><td>${esc(a.name)}<div class="mu" style="font-size:12px">${esc(a.id)}</div></td><td class="n">${fmt(a.price)}</td><td style="width:130px"><input type="number" min="0" data-cp="${esc(a.id)}" placeholder="—" value="${D.costs[a.id]==null?'':D.costs[a.id]}"></td><td class="n mu">${D.costs[a.id]&&a.price?Math.round((a.price-D.costs[a.id])/a.price*100)+' %':'—'}</td><td style="width:150px"><input type="number" min="0" data-th="${esc(a.id)}" placeholder="Auto" value="${a.threshold==null?'':a.threshold}"></td></tr>`).join('')||'<tr><td colspan="5" class="mu">Aucun article.</td></tr>'}</tbody></table></div><p class="mu" style="font-size:12.5px;margin:8px 0 0">Le prix d’achat sert à calculer la marge dans Statistiques. Il n’est jamais visible dans les magasins.</p></div>`;
 }
 function bindParam(){
+  if(isView()){bindPrices();return}
   const refresh=async()=>{await loadStores();await loadDirector();draw()};
   document.querySelectorAll('[data-sn]').forEach(i=>i.onchange=async()=>{const n=i.value.trim();if(!n){i.value=STORES[i.dataset.sn];return}try{await q(sb.from('stores').update({name:n}).eq('id',i.dataset.sn).select('id'));toast('Nom enregistré');await refresh()}catch(e){toast('Erreur : '+e.message)}});
   document.querySelectorAll('[data-sa]').forEach(b=>b.onclick=async()=>{const [id,a]=b.dataset.sa.split('|');if(a==='0'&&!confirm('Désactiver ce magasin ? Son historique est conservé.'))return;try{await q(sb.from('stores').update({active:a==='1'}).eq('id',id).select('id'));await refresh()}catch(e){toast('Erreur : '+e.message)}});
@@ -1292,7 +1299,7 @@ function bindParam(){
   $('#ugo').onclick=async()=>{
     const full_name=$('#uname').value.trim(),identifiant=$('#uid').value.trim(),password=$('#upw').value,st=$('#ust').value;
     $('#ugo').disabled=true;
-    try{const r=await adminCall({action:'create_user',full_name,identifiant,password,role:st==='DIR'?'admin':st==='CEN'?'central':'cashier',store_id:st==='DIR'?null:st});toast('Compte créé : '+r.email);await refresh()}
+    try{const r=await adminCall({action:'create_user',full_name,identifiant,password,role:st==='DIR'?'admin':st==='VIEW'?'viewer':st==='CEN'?'central':'cashier',store_id:(st==='DIR'||st==='VIEW')?null:st});toast('Compte créé : '+r.email);await refresh()}
     catch(e){$('#uerr').textContent=e.message;$('#ugo').disabled=false}
   };
   document.querySelectorAll('[data-pw]').forEach(b=>b.onclick=async()=>{const pw=prompt('Nouveau mot de passe (8 caractères au moins) :');if(!pw)return;try{await adminCall({action:'set_password',user_id:b.dataset.pw,password:pw});toast('Mot de passe changé')}catch(e){toast('Erreur : '+e.message)}});
