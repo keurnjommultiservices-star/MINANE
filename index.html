@@ -84,7 +84,7 @@ header.top .pill .ic{margin-right:4px;width:14px;height:14px;vertical-align:-2px
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 'use strict';
-const BUILD='2.9.6';
+const BUILD='2.9.7';
 const SB_URL='https://ehnptnwvwshmcaqrupru.supabase.co';
 const SB_KEY='sb_publishable_h3I7whuNEfbnfub_Q0eP6w_e77YMUqn';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
@@ -1395,20 +1395,26 @@ function bindCredits(){
 }
 
 /* ---------- STATISTIQUES ---------- */
-let STAT={arts:[],cash:[],rets:[],sel:[],gaps:[],mar:[],disc:[],for:null};
+let STAT={arts:[],cash:[],rets:[],sel:[],gaps:[],mar:[],disc:[],gros:[],gvers:[],for:null};
 async function loadStats(){
   STAT.for=D.per;
   const from=dayStr(+D.per-1)+'T00:00:00Z';
-  try{[STAT.arts,STAT.cash,STAT.rets,STAT.sel,STAT.gaps,STAT.mar,STAT.disc]=await Promise.all([q(sb.rpc('stats_top_articles',{p_from:from,p_limit:8})),q(sb.rpc('stats_cashiers',{p_from:from})),q(sb.from('returns').select('id,amount,qty,kind,created_at').gte('created_at',from)),q(sb.rpc('stats_sellers',{p_from:from})),q(sb.rpc('stats_cash_gaps',{p_from:dayStr(+D.per-1)})),q(sb.rpc('stats_margin',{p_from:from})),q(sb.from('sales').select('store_id,discount,discount_code').gt('discount',0).gte('sold_at',from))])}catch(e){toast('Chargement impossible : '+(e.message||e))}
+  try{[STAT.arts,STAT.cash,STAT.rets,STAT.sel,STAT.gaps,STAT.mar,STAT.disc]=await Promise.all([q(sb.rpc('stats_top_articles',{p_from:from,p_limit:8})),q(sb.rpc('stats_cashiers',{p_from:from})),q(sb.from('returns').select('id,amount,qty,kind,created_at').gte('created_at',from)),q(sb.rpc('stats_sellers',{p_from:from})),q(sb.rpc('stats_cash_gaps',{p_from:dayStr(+D.per-1)})),q(sb.rpc('stats_margin',{p_from:from})),q(sb.from('sales').select('store_id,discount,discount_code').gt('discount',0).gte('sold_at',from))]);[STAT.gros,STAT.gvers]=await Promise.all([q(sb.from('central_invoices').select('invoice_no,client_name,total,issued_at,central_invoice_items(qty)').is('store_id',null).gte('issued_at',from)),q(sb.from('versements').select('client_name,amount').not('client_name','is',null).eq('status','confirmed').gte('day',dayStr(+D.per-1)))])}catch(e){toast('Chargement impossible : '+(e.message||e))}
 }
 function bars(rows,fmtv){const mx=Math.max(1,...rows.map(r=>r.v));return rows.length?rows.map(r=>`<div style="display:flex;align-items:center;gap:10px;margin:7px 0"><div style="flex:0 0 38%;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.col?`<i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${r.col};margin-right:7px"></i>`:''}${esc(r.n)}</div><div style="flex:1;background:#eef2ef;border-radius:6px;height:16px"><div style="width:${Math.max(2,r.v/mx*100)}%;height:100%;border-radius:6px;background:${r.col||'var(--g2)'}"></div></div><div style="flex:0 0 auto;min-width:70px;text-align:right;font-weight:700;font-size:13px">${fmtv(r.v)}</div></div>`).join(''):'<p class="mu" style="font-size:13px">Aucune donnée sur la période.</p>'}
+function grosCard(PL){
+  const G=STAT.gros||[],V=STAT.gvers||[],tot=sumBy(G,g=>+g.total),paid=sumBy(V,v=>+v.amount),pcs=sumBy(G,g=>sumBy(g.central_invoice_items||[],x=>x.qty));
+  const m=new Map();G.forEach(g=>{const r=m.get(g.client_name)||{n:g.client_name,f:0,p:0,q:0,c:0};r.f+=+g.total;r.q+=sumBy(g.central_invoice_items||[],x=>x.qty);r.c++;m.set(g.client_name,r)});V.forEach(v=>{const r=m.get(v.client_name)||{n:v.client_name,f:0,p:0,q:0,c:0};r.p+=+v.amount;m.set(v.client_name,r)});
+  const rows=[...m.values()].sort((a,b)=>b.f-a.f).map(r=>`<tr><td><b>${esc(r.n)}</b></td><td class="n">${r.c}</td><td class="n">${r.q}</td><td class="n">${fmt(r.f)}</td><td class="n">${fmt(r.p)}</td></tr>`).join('')||'<tr><td colspan="5" class="mu">Aucune vente aux grossistes sur la période.</td></tr>';
+  return `<div class="card"><h2>${ic('truck')}Ventes aux grossistes <small class="mu" style="font-weight:400">facturées par le Magasin Central · ${PL}</small></h2><div class="kpi"><div><b>${fmt(tot)}</b><small>facturé</small></div><div><b>${fmt(paid)}</b><small>encaissé (acomptes et versements)</small></div><div><b>${pcs}</b><small>pièces · ${G.length} facture(s)</small></div></div><div class="tw"><table><thead><tr><th>Grossiste</th><th class="n">Factures</th><th class="n">Pièces</th><th class="n">Facturé</th><th class="n">Encaissé</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+}
 function dirStats(){
   const days=daysOf(+D.per),PL=D.per==='1'?'aujourd’hui':D.per+' jours';
   const byS=SHOPS.map(k=>({n:STORES[k],v:sumBy(days,d=>recDay(d,k)),col:SCOL[k]})).sort((a,b)=>b.v-a.v);
   const modes=[['Espèces','cash','#2e7d32'],['Wave','wave','#1e88e5'],['Orange Money','om','#ef6c00']].map(([n,k,c])=>({n,col:c,v:sumBy(D.summary.filter(r=>days.includes(r.day)),r=>+r[k])}));
   const arts=STAT.arts.map(a=>({n:a.name,v:+a.qty})),rt=STAT.rets;
   const cs=STAT.cash.map(c=>`<tr><td><b>${esc(c.full_name)}</b></td><td>${dot(c.store_id)}${esc(SHORT[c.store_id]||c.store_id)}</td><td class="n">${c.tickets}</td><td class="n">${fmt(+c.total)}</td><td class="n">${c.tickets?fmt(Math.round(+c.total/c.tickets)):'—'}</td></tr>`).join('')||'<tr><td colspan="5" class="mu">Aucune vente sur la période.</td></tr>';
-  return `${perBar()}<div class="grid2"><div class="card"><h2>Recettes par magasin <small class="mu" style="font-weight:400">${PL}</small></h2>${bars(byS,fmt)}</div><div class="card"><h2>Articles les plus vendus <small class="mu" style="font-weight:400">en pièces</small></h2>${bars(arts,v=>String(v))}</div></div>
+  return `${perBar()}${grosCard(PL)}<div class="grid2"><div class="card"><h2>Recettes par magasin <small class="mu" style="font-weight:400">${PL}</small></h2>${bars(byS,fmt)}</div><div class="card"><h2>Articles les plus vendus <small class="mu" style="font-weight:400">en pièces</small></h2>${bars(arts,v=>String(v))}</div></div>
   <div class="grid2"><div class="card"><h2>Encaissements par mode <small class="mu" style="font-weight:400">${PL}</small></h2>${bars(modes,fmt)}</div><div class="card"><h2>Retours <small class="mu" style="font-weight:400">${PL}</small></h2><div class="kpi" style="grid-template-columns:1fr 1fr"><div><b>${rt.length}</b><small>retour(s)</small></div><div><b>${fmt(sumBy(rt,r=>r.amount))}</b><small>rendus aux clients</small></div></div></div></div>
   <div class="card"><h2>Performance des caissiers <small class="mu" style="font-weight:400">${PL}</small></h2><div class="tw"><table><thead><tr><th>Caissier</th><th>Magasin</th><th class="n">Tickets</th><th class="n">Ventes</th><th class="n">Panier moyen</th></tr></thead><tbody>${cs}</tbody></table></div></div>${statsExtra(PL)}`;
 }
