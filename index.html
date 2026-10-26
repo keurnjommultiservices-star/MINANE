@@ -84,7 +84,7 @@ header.top .pill .ic{margin-right:4px;width:14px;height:14px;vertical-align:-2px
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 'use strict';
-const BUILD='2.9.5';
+const BUILD='2.9.6';
 const SB_URL='https://ehnptnwvwshmcaqrupru.supabase.co';
 const SB_KEY='sb_publishable_h3I7whuNEfbnfub_Q0eP6w_e77YMUqn';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
@@ -1035,7 +1035,7 @@ function dirCentral(){
   const sit=SHOPS.map(k=>{const b=invPaid(k),r=b.invoiced-b.paid,li=CINV.filter(i=>i.store_id===k)[0];
     return `<tr><td>${dot(k)}<b>${esc(STORES[k])}</b>${li?`<div class="mu" style="font-size:12px">Dernière facture : ${dtFr(li.issued_at)}</div>`:''}</td><td class="n">${fmt(b.invoiced)}</td><td class="n">${fmt(b.paid)}</td><td class="n"><b style="color:${r>0?'var(--rd)':'inherit'}">${fmt(Math.max(0,r))}</b></td><td class="n">${r<0?'<b style="color:var(--g)">'+fmt(-r)+'</b>':'—'}</td></tr>`}).join('');
   const paidOf=i=>{return null};
-  const inv=CINV.slice(0,25).map(i=>`<tr><td><b>${esc(i.invoice_no)}</b></td><td>${dtFr(i.issued_at)}</td><td>${i.store_id?dot(i.store_id):''}${esc(iwho(i))}</td><td class="n">${(i.central_invoice_items||[]).reduce((t,x)=>t+x.qty,0)}</td><td class="n"><b>${fmt(i.total)}</b></td><td class="n"><button class="btn sm sec" data-pi="${i.id}">${ic('printer',16)}Imprimer</button></td></tr>`).join('')||'<tr><td colspan="6" class="mu">Aucune facture pour le moment.</td></tr>';
+  const inv=CINV.slice(0,25).map(i=>`<tr><td><b>${esc(i.invoice_no)}</b></td><td>${dtFr(i.issued_at)}</td><td>${i.store_id?dot(i.store_id):''}${esc(iwho(i))}</td><td class="n">${(i.central_invoice_items||[]).reduce((t,x)=>t+x.qty,0)}</td><td class="n"><b>${fmt(i.total)}</b></td><td class="n"><button class="btn sm sec" data-pi="${i.id}">${ic('printer',16)}Facture</button> <button class="btn sm sec" data-pbl="${i.id}">${ic('truck',16)}Bon de livraison</button></td></tr>`).join('')||'<tr><td colspan="6" class="mu">Aucune facture pour le moment.</td></tr>';
   const reg=D.vers.filter(v=>v.status==='confirmed').slice(0,10).map(v=>`<tr><td>${dtFr(v.confirmed_at||v.created_at)}</td><td>${esc(vwho(v))}</td><td>${v.method==='wave'?'Wave':v.method==='om'?'OM':'Espèces'}${v.reference?' · '+esc(v.reference):''}</td><td class="n">${fmt(v.amount)}</td></tr>`).join('')||'<tr><td colspan="4" class="mu">Aucun règlement.</td></tr>';
   const lines=CV.lines.length?`<table><thead><tr><th>Article</th><th class="n">Qté</th><th class="n">Prix</th><th class="n">Montant</th><th></th></tr></thead><tbody>${CV.lines.map((l,i)=>`<tr><td>${esc(aname(l.article_id))}${[l.size&&' · P'+l.size,l.color&&' · '+l.color].filter(Boolean).join('')}</td><td class="n">${l.qty}</td><td class="n">${fmt(l.price)}</td><td class="n">${fmt(l.qty*l.price)}</td><td><button class="btn sm sec" data-rm="${i}">×</button></td></tr>`).join('')}<tr><td colspan="3" class="n"><b>Total</b></td><td class="n"><b>${fmt(tot)}</b></td><td></td></tr></tbody></table>`:'<p class="mu" style="font-size:13px">Aucune ligne. Choisissez un article puis « Ajouter la ligne ».</p>';
   return `<div class="kpi"><div><small>${ic('package')}Stock du Central</small><b>${pcs}</b><small>pièces</small></div><div><small>${ic('store')}Dû par les magasins</small><b style="color:${due?'var(--rd)':'inherit'}">${fmt(due)}</b><small>factures moins versements confirmés</small></div><div><small>${ic('wallet')}Versements à confirmer</small><b>${pendingVers()}</b><small>envoyés par les caissiers</small></div></div>
@@ -1056,6 +1056,17 @@ function dirCentral(){
   <button class="btn big" id="rpg" style="margin-top:12px">${ic('check',20)}Enregistrer le règlement</button><div class="err" id="rperr"></div></div>
   <div class="card"><h2>Derniers règlements</h2><div class="tw"><table><tbody>${reg}</tbody></table></div></div></div>`}</div>
   <div class="card"><h2>${ic('file-text')}Factures <small class="mu" style="font-weight:400">${CINV.length} au total</small></h2><div class="tw"><table><thead><tr><th>N°</th><th>Date et heure</th><th>Destinataire</th><th class="n">Pièces</th><th class="n">Total</th><th></th></tr></thead><tbody>${inv}</tbody></table></div></div>`;
+}
+function printDelivery(i){
+  if(!i)return;const aname=id=>(D.arts.find(a=>a.id===id)||{name:id}).name,items=i.central_invoice_items||[],nb=items.reduce((t,x)=>t+x.qty,0);
+  const rows=items.map(x=>`<tr><td>${esc(aname(x.article_id))}${[x.size&&' · P'+x.size,x.color&&' · '+x.color].filter(Boolean).join('')}</td><td class="r">${x.qty}</td><td></td></tr>`).join('');
+  const html=`<!doctype html><meta charset="utf-8"><title>BL ${esc(i.invoice_no)}</title><style>body{font:14px Arial,sans-serif;margin:18mm;color:#111}table{border-collapse:collapse;width:100%;margin-top:18px}th,td{border:1px solid #bbb;padding:8px 10px;text-align:left}th{background:#f1f1f1}.r{text-align:right}.h{display:flex;justify-content:space-between;align-items:flex-start}.box{border:1px solid #bbb;padding:10px 14px}.sig{display:flex;justify-content:space-between;margin-top:70px;gap:20px}.sig div{flex:1;border-top:1px solid #777;padding-top:6px;text-align:center}</style>
+  <div class="h"><div><img src="${location.origin}/logo.png" style="max-height:26mm;max-width:80mm"><br><b>MINANE SHOP — Magasin Central</b></div><div class="box"><b style="font-size:18px">BON DE LIVRAISON ${esc(i.invoice_no.replace(/^FC-/,'BL-'))}</b><br>${dtFr(i.issued_at)}<br><small>Facture ${esc(i.invoice_no)}</small></div></div>
+  <p><b>Destinataire :</b> ${esc(iwho(i))}${i.client_phone?' · Tél. '+esc(i.client_phone):''}</p>
+  <table><thead><tr><th>Désignation</th><th class="r">Qté livrée</th><th>Observation</th></tr></thead><tbody>${rows}<tr><td class="r"><b>TOTAL pièces</b></td><td class="r"><b>${nb}</b></td><td></td></tr></tbody></table>
+  <p style="margin-top:16px">Livreur / véhicule : ______________________________</p>
+  <div class="sig"><div>Établi par : ${esc(me.full_name)}<br>Magasin Central</div><div>Livré par</div><div>${i.store_id?'Le Magasin':'Le client'} (reçu conforme, date et signature)</div></div><script>onload=()=>setTimeout(()=>print(),400)<\/script>`;
+  const w=window.open('','_blank');if(!w){toast('Autorisez les fenêtres pour imprimer.');return}w.document.write(html);w.document.close();
 }
 function printInvoice(i){
   const aname=id=>(D.arts.find(a=>a.id===id)||{name:id}).name,items=i.central_invoice_items||[];
@@ -1101,9 +1112,11 @@ function bindCentral(){
       if(me.role!=='central')for(const id of touched){const l=CV.lines.find(x=>x.article_id===id);try{await q(sb.from('articles').update({wholesale_price:l.price}).eq('id',id).select('id'))}catch(e){}}
       CV.lines=[];toast('Facture '+no+' établie : '+fmt(tot));D.stock[CV.to]=null;if(CV.to==='G'){CV.client='';CV.phone=''}
       await Promise.all([loadCentral(),me.role==='central'?0:loadDirector()]);draw();
+      const ni=CINV.find(x=>x.invoice_no===no);if(ni&&confirm('Facture '+no+' établie. Imprimer le bon de livraison ?'))printDelivery(ni);
     }catch(e){$('#cerr').textContent='Erreur : '+(e.message||e);$('#cgo').disabled=false}
   };
   document.querySelectorAll('[data-pi]').forEach(b=>b.onclick=()=>printInvoice(CINV.find(x=>x.id===b.dataset.pi)));
+  document.querySelectorAll('[data-pbl]').forEach(b=>b.onclick=()=>printDelivery(CINV.find(x=>x.id===b.dataset.pbl)));
   const rg=$('#rpg');if(rg)rg.onclick=async()=>{
     const a=Math.round(+$('#rpa').value||0);if(!(a>0)){$('#rperr').textContent='Saisissez le montant reçu.';return}
     try{await q(sb.from('versements').insert({...(($('#rps').value||'').startsWith('g:')?{client_name:$('#rps').value.slice(2)}:{store_id:$('#rps').value}),day:dayStr(0),amount:a,method:$('#rpm').value,reference:'Règlement direct',status:'confirmed',confirmed_by:me.id,confirmed_at:new Date().toISOString()}).select('id'));toast('Règlement de '+fmt(a)+' enregistré');await Promise.all([loadDirector(),loadCentral()]);draw()}catch(e){$('#rperr').textContent='Erreur : '+(e.message||e)}
