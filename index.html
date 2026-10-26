@@ -83,7 +83,7 @@ header.top .pill .ic{margin-right:4px;width:14px;height:14px;vertical-align:-2px
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 'use strict';
-const BUILD='2.6';
+const BUILD='2.7';
 const SB_URL='https://ehnptnwvwshmcaqrupru.supabase.co';
 const SB_KEY='sb_publishable_h3I7whuNEfbnfub_Q0eP6w_e77YMUqn';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
@@ -196,7 +196,7 @@ async function loadStores(){
   rows.forEach(r=>{STORE_PAY[r.id]={wave:r.wave||'',om:r.om||'',qr:r.wave_qr||''};STORE_WA[r.id]=r.whatsapp||'';STORES[r.id]=r.name;if(r.kind==='store'){if(r.active)SHOPS.push(r.id);if(!SHORT[r.id])SHORT[r.id]=r.name.replace(/\w\S*/g,w=>w[0]+w.slice(1).toLowerCase());if(!SCOL[r.id])SCOL[r.id]=EXTRA_COL[x++%EXTRA_COL.length]}});
   SHORT.CEN='Central';
 }
-let SET={seuil:20,seuil_cher:10,cher_min:30000,wave_central:'',om_central:''};
+let SET={seuil:20,seuil_cher:10,cher_min:30000,wave_central:'',om_central:'',remise_max_pct:10,remise_code:''};
 async function loadSettings(){try{const r=await q(sb.from('settings').select('key,value'));r.forEach(x=>{SET[x.key]=x.value});LS.set('settings',SET)}catch(e){Object.assign(SET,LS.get('settings',{}))}}
 async function start(){
   $('#app').innerHTML='<div class="login"><div class="mu">Chargement…</div></div>';
@@ -280,7 +280,7 @@ function drawCashier(){
   const tabs=[['caisse',ic('shopping-cart')+'Caisse'],['journal',ic('receipt')+'Journal'],['stock',ic('package')+'Stock'],['credits',ic('users')+'Crédits'],['livraisons',ic('truck')+'Livraisons'],['retours',ic('undo-2')+'Retours'],['cloture',ic('lock')+'Clôture']];
   let b='';
   if(S.tab==='caisse')b=viewCaisse();
-  else if(S.tab==='livraisons')b=dirBons();
+  else if(S.tab==='livraisons')b=recvBlock()+dirBons();
   else if(S.tab==='credits')b=viewCredits();
   else if(S.tab==='retours')b=dirRetours();
   else if(S.tab==='journal')b=viewJournal();
@@ -289,7 +289,7 @@ function drawCashier(){
   $('#app').innerHTML=shell(tabs,b);
   if(S.tab==='caisse')bindCaisse();
   if(S.tab==='stock')bindStock();
-  if(S.tab==='livraisons')bindBons();
+  if(S.tab==='livraisons'){bindBons();bindRecv()}
   if(S.tab==='credits')bindCredits();
   if(S.tab==='retours')bindRetours();
   if(S.tab==='cloture')bindCloture();
@@ -337,11 +337,15 @@ function addLine(a,r){
   if(ex)ex.qty++;else S.cart.push({article_id:a.id,name:a.name,price:a.price,size:r.size,color:r.color,qty:1});
   draw();
 }
+const sha=async t=>{const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')};
+const codeHash=c=>sha('minane|'+String(c||'').trim());
 function payModal(){
-  const total=S.cart.reduce((s,l)=>s+l.qty*l.price,0);
-  const m=modal(`<h2 style="margin-top:0">Encaissement · ${fmt(total)}</h2>
-  <div class="row" style="gap:8px"><button class="btn sm sec" id="allc">Tout en espèces</button><button class="btn sm" id="allw">Tout en Wave</button></div>
-  <label>Espèces</label><input id="pc" type="number" inputmode="numeric" min="0" value="${total}">
+  const total0=S.cart.reduce((s,l)=>s+l.qty*l.price,0),maxPct=+SET.remise_max_pct>=0?+SET.remise_max_pct:10,hasCode=!!SET.remise_code;
+  const m=modal(`<h2 style="margin-top:0">Encaissement · <span id="ptot">${fmt(total0)}</span></h2>
+  <div class="row" style="gap:8px;align-items:flex-end"><div style="flex:1"><label style="margin-top:0">Remise (F)</label><input id="pd" type="number" inputmode="numeric" min="0" value="0"></div><div class="mu" id="pdi" style="flex:1;font-size:13px;padding-bottom:10px"></div></div>
+  <div id="pdk" style="display:none"><label>Code du Directeur (remise au-delà de ${maxPct} %)</label><input id="pk" type="password" inputmode="numeric" autocomplete="off"></div>
+  <div class="row" style="gap:8px;margin-top:10px"><button class="btn sm sec" id="allc">Tout en espèces</button><button class="btn sm" id="allw">Tout en Wave</button></div>
+  <label>Espèces</label><input id="pc" type="number" inputmode="numeric" min="0" value="${total0}">
   <label>Wave</label><input id="pw" type="number" inputmode="numeric" min="0" value="0">
   <label>Orange Money</label><input id="po" type="number" inputmode="numeric" min="0" value="0">
   <div id="wpanel"></div>
@@ -350,29 +354,39 @@ function payModal(){
   <div id="perr" class="err"></div>
   <button class="btn big" style="margin-top:12px" id="ok">${ic('check',20)}Valider la vente</button><button class="btn sec big" style="margin-top:8px" id="cx">Annuler</button>`);
   const val=id=>Math.max(0,Math.round(+$(id,m).value||0));
+  const disc=()=>Math.min(val('#pd'),total0),net=()=>total0-disc(),pctOf=()=>total0?disc()/total0*100:0,over=()=>pctOf()>maxPct+1e-9;
   const pay=payOf(me.store_id);
   const wp=()=>{const w=val('#pw'),o=val('#po');let h='';
     if(w>0)h+=`<div class="card" style="margin:10px 0 0;padding:12px;text-align:center"><b>Wave · ${fmt(w)}</b>${pay.qr?`<div><img src="${pay.qr}" alt="QR Wave" style="width:200px;height:200px;object-fit:contain;background:#fff;margin:8px auto 0;display:block;border-radius:8px"></div>`:''}<div class="mu" style="font-size:13px">${pay.wave?'Numéro Wave du magasin : <b>'+esc(pay.wave)+'</b>':'Numéro Wave non configuré (Paramètres)'}</div></div>`;
     if(o>0)h+=`<div class="card" style="margin:10px 0 0;padding:12px;text-align:center"><b>Orange Money · ${fmt(o)}</b><div class="mu" style="font-size:13px">${pay.om?'Numéro OM du magasin : <b>'+esc(pay.om)+'</b>':'Numéro OM non configuré (Paramètres)'}</div></div>`;
     if(w>0||o>0)h+=`<label style="display:flex;gap:10px;align-items:center;margin-top:10px;font-weight:600"><input type="checkbox" id="wok" style="width:22px;height:22px;flex:none;margin:0"><span>Paiement reçu sur le téléphone du magasin</span></label>`;
     const was=$('#wok',m)&&$('#wok',m).checked;$('#wpanel',m).innerHTML=h;if(was&&$('#wok',m))$('#wok',m).checked=true};
-  const upd=()=>{const rest=total-val('#pc')-val('#pw')-val('#po');$('#rest',m).textContent=fmt(Math.max(0,rest));$('#cred',m).style.display=rest>0?'block':'none';return rest};
-  $('#allc',m).onclick=()=>{$('#pc',m).value=total;$('#pw',m).value=0;$('#po',m).value=0;upd();wp()};
-  $('#allw',m).onclick=()=>{$('#pc',m).value=0;$('#pw',m).value=total;$('#po',m).value=0;upd();wp()};
+  const upd=()=>{const rest=net()-val('#pc')-val('#pw')-val('#po');$('#rest',m).textContent=fmt(Math.max(0,rest));$('#cred',m).style.display=rest>0?'block':'none';
+    $('#ptot',m).textContent=fmt(net());$('#pdi',m).textContent=disc()?('= '+pctOf().toFixed(1).replace('.',',')+' % du total'):'';$('#pdk',m).style.display=over()?'block':'none';return rest};
+  $('#pd',m).oninput=()=>{if(val('#pw')===0&&val('#po')===0)$('#pc',m).value=net();upd();wp()};
+  $('#allc',m).onclick=()=>{$('#pc',m).value=net();$('#pw',m).value=0;$('#po',m).value=0;upd();wp()};
+  $('#allw',m).onclick=()=>{$('#pc',m).value=0;$('#pw',m).value=net();$('#po',m).value=0;upd();wp()};
   ['#pc','#pw','#po'].forEach(i=>$(i,m).oninput=()=>{upd();wp()});upd();wp();
   $('#cx',m).onclick=()=>m.remove();
-  $('#ok',m).onclick=()=>{
+  $('#ok',m).onclick=async()=>{
     const rest=upd();
     if(rest<0){$('#perr',m).textContent='Le montant reçu dépasse le total.';return}
     if((val('#pw')>0||val('#po')>0)&&!($('#wok',m)&&$('#wok',m).checked)){$('#perr',m).textContent='Confirmez que le paiement Wave / Orange Money est bien reçu.';return}
     if(rest>0&&!$('#cn',m).value.trim()){$('#perr',m).textContent='Indiquez le nom du client pour le crédit.';return}
-    const info={cash:val('#pc'),wave:val('#pw'),om:val('#po'),rest,name:$('#cn',m).value.trim(),phone:$('#cp',m).value.trim(),due:$('#cd',m).value||null};
-    m.remove();finishSale(total,info);
+    let code=false;
+    if(over()){
+      if(!hasCode){$('#perr',m).textContent='Remise au-delà de '+maxPct+' % : le Directeur doit d’abord définir un code (Paramètres).';return}
+      if(!$('#pk',m).value.trim()){$('#perr',m).textContent='Remise au-delà de '+maxPct+' % : saisissez le code du Directeur.';return}
+      if(await codeHash($('#pk',m).value)!==SET.remise_code){$('#perr',m).textContent='Code du Directeur incorrect.';return}
+      code=true;
+    }
+    const info={cash:val('#pc'),wave:val('#pw'),om:val('#po'),rest,name:$('#cn',m).value.trim(),phone:$('#cp',m).value.trim(),due:$('#cd',m).value||null,disc:disc(),code};
+    const t=net();m.remove();finishSale(t,info);
   };
 }
 function finishSale(total,i){
   const id=uid(),now=new Date().toISOString(),ticket=nextTicket();
-  const sale={id,store_id:me.store_id,ticket_no:ticket,seller_id:S.vend,customer_name:i.name||null,customer_phone:i.phone||null,total,sold_at:now};
+  const sale={id,store_id:me.store_id,ticket_no:ticket,seller_id:S.vend,customer_name:i.name||null,customer_phone:i.phone||null,total,sold_at:now,discount:i.disc||0,discount_code:!!i.code};
   const items=S.cart.map(l=>({id:uid(),sale_id:id,article_id:l.article_id,size:l.size,color:l.color,qty:l.qty,unit_price:l.price}));
   const pays=[['cash',i.cash],['wave',i.wave],['om',i.om],['credit',i.rest]].filter(x=>x[1]>0).map(x=>({id:uid(),sale_id:id,method:x[0],amount:x[1]}));
   const credit=i.rest>0?{id:uid(),sale_id:id,store_id:me.store_id,customer_name:i.name,customer_phone:i.phone||null,amount:i.rest,due_date:i.due}:null;
@@ -386,7 +400,7 @@ function receipt(sale,lines,pays,vname){
   const lab={cash:'Espèces',wave:'Wave',om:'Orange Money',credit:'Crédit'};
   const html=`<div style="text-align:center"><img src="logo-ticket.png" alt="MINANE" style="width:46mm;height:auto"><br><b style="font-size:15px">MINANE SHOP</b><br>${esc(STORES[sale.store_id])}<br>${dtFr(sale.sold_at)}<br>Ticket ${esc(sale.ticket_no)}</div><hr>
   ${lines.map(l=>`${esc(l.name)}<br>&nbsp;&nbsp;${[l.size&&'P'+l.size,l.color].filter(Boolean).join(' ')} ${l.qty} x ${l.price} = <b>${l.qty*l.price}</b><br>`).join('')}<hr>
-  <b>TOTAL ${sale.total} F</b><br>${pays.map(p=>lab[p.method]+' : '+p.amount+' F').join('<br>')}<br>${vname?'Vendeur : '+esc(vname)+'<br>':''}${sale.customer_name?'Client : '+esc(sale.customer_name)+'<br>':''}<br><div style="text-align:center">Merci de votre visite${waQr(sale.store_id,120)?`<br>Écrivez-nous sur WhatsApp<br>${esc(STORE_WA[sale.store_id])}<br>${waQr(sale.store_id,120)}`:''}</div>`;
+  ${sale.discount>0?`Remise : −${sale.discount} F<br>`:''}<b>TOTAL ${sale.total} F</b><br>${pays.map(p=>lab[p.method]+' : '+p.amount+' F').join('<br>')}<br>${vname?'Vendeur : '+esc(vname)+'<br>':''}${sale.customer_name?'Client : '+esc(sale.customer_name)+'<br>':''}<br><div style="text-align:center">Merci de votre visite${waQr(sale.store_id,120)?`<br>Écrivez-nous sur WhatsApp<br>${esc(STORE_WA[sale.store_id])}<br>${waQr(sale.store_id,120)}`:''}</div>`;
   $('#rcpt').innerHTML=html;
   const m=modal(`<h2 style="margin-top:0">Vente enregistrée</h2><div class="mu" style="margin-bottom:10px">Ticket ${esc(sale.ticket_no)} · ${fmt(sale.total)}${navigator.onLine?'':' · sera envoyé au retour d’internet'}</div><button class="btn big" id="pr">${ic('printer',20)}Imprimer le reçu</button><button class="btn sec big" style="margin-top:8px" id="nw">${ic('plus')}Nouvelle vente</button>`);
   $('#pr',m).onclick=()=>window.print();$('#nw',m).onclick=()=>m.remove();
@@ -425,11 +439,63 @@ function bindStock(redraw){
   s.oninput=()=>{S.sq=s.value;const pos=s.selectionStart;(redraw||draw)();const n=$('#sq');n.focus();n.setSelectionRange(pos,pos)};
 }
 
+
+/* ---------- INVENTAIRE TOURNANT ---------- */
+const CYC={rows:[],loaded:false,busy:false};
+const ckey=l=>l.article_id+'|'+l.size+'|'+l.color;
+async function loadCyc(){
+  CYC.loaded=true;
+  try{CYC.rows=await q(sb.from('cycle_counts').select('*').eq('store_id',me.store_id).eq('day',dayOf()))}catch(e){CYC.rows=[]}
+}
+function cycLines(){
+  const L=effStock().filter(r=>r.article_id).slice().sort((a,b)=>ckey(a)<ckey(b)?-1:1),n=L.length;if(!n)return [];
+  const k=Math.min(5,n),start=(Math.floor(Date.now()/864e5)*5)%n;
+  return Array.from({length:k},(_,i)=>L[(start+i)%n]);
+}
+function cycCard(){
+  const lines=cycLines();if(!lines.length)return '';
+  const aname=id=>(ARTS.find(a=>a.id===id)||{name:id}).name,done=new Map(CYC.rows.map(r=>[ckey(r),r]));
+  const lab=l=>esc(aname(l.article_id))+[l.size&&' · P'+l.size,l.color&&' · '+l.color].filter(Boolean).join('');
+  const st=r=>{const d=r.counted_qty-r.system_qty;if(d===0)return '<span class="badge b-ok">Conforme</span>';
+    return `<span class="badge ${r.status==='applied'?'b-ok':r.status==='rejected'?'b-gr':'b-wait'}">Écart ${d>0?'+':'−'}${Math.abs(d)} · ${r.status==='applied'?'corrigé par le Directeur':r.status==='rejected'?'écart refusé':'transmis au Directeur'}</span>`};
+  const todo=lines.filter(l=>!done.has(ckey(l)));
+  return `<div class="card"><h2>${ic('clipboard-list')}Comptage du jour <small class="mu" style="font-weight:400">${lines.length} article(s) à compter</small></h2>
+  <p class="mu" style="margin:0 0 8px;font-size:13px">Comptez ces articles en rayon et saisissez ce que vous voyez. Le stock affiché par le système n’est pas montré avant l’envoi. Chaque jour, de nouveaux articles sont demandés.</p>
+  <div class="tw"><table><thead><tr><th>Article</th><th class="n">Compté</th><th></th></tr></thead><tbody>${lines.map((l,i)=>{const r=done.get(ckey(l));return `<tr><td>${lab(l)}</td><td class="n" style="width:100px">${r?'<b>'+r.counted_qty+'</b>':`<input type="number" min="0" data-cq="${i}" style="padding:6px;text-align:right">`}</td><td>${r?st(r):''}</td></tr>`}).join('')}</tbody></table></div>
+  ${todo.length?`<button class="btn big" style="margin-top:10px" id="cyg">${ic('check',20)}Envoyer le comptage</button><div class="err" id="cyerr"></div>`:'<p class="mu" style="margin:8px 0 0;font-size:13px">Comptage du jour terminé.</p>'}</div>`;
+}
+function bindCyc(){
+  if(!CYC.loaded&&!CYC.busy){CYC.busy=true;loadCyc().then(()=>{CYC.busy=false;if(S.tab==='cloture')draw()})}
+  const g=$('#cyg');if(!g)return;
+  g.onclick=async()=>{
+    const lines=cycLines(),rows=[];
+    lines.forEach((l,i)=>{const el=document.querySelector('[data-cq="'+i+'"]');if(el&&el.value!=='')rows.push({store_id:me.store_id,day:dayOf(),article_id:l.article_id,size:l.size,color:l.color,counted_qty:Math.max(0,Math.round(+el.value))})});
+    if(!rows.length){$('#cyerr').textContent='Saisissez au moins une quantité.';return}
+    if(!navigator.onLine){$('#cyerr').textContent='Il faut internet pour envoyer le comptage.';return}
+    g.disabled=true;
+    try{await q(sb.from('cycle_counts').upsert(rows,{onConflict:'store_id,day,article_id,size,color',ignoreDuplicates:true}).select('id'));await loadCyc();toast('Comptage envoyé');draw()}
+    catch(e){$('#cyerr').textContent='Erreur : '+(e.message||e);g.disabled=false}
+  };
+}
+const cycPending=()=>D.cycles.filter(c=>c.status==='pending');
+function cycDir(){
+  if(me.role==='central')return '';
+  const aname=id=>(D.arts.find(a=>a.id===id)||{name:id}).name,P=cycPending(),H=D.cycles.filter(c=>c.status!=='pending'&&c.counted_qty!==c.system_qty).slice(0,6);
+  const lab=c=>esc(aname(c.article_id))+[c.size&&' · P'+c.size,c.color&&' · '+c.color].filter(Boolean).join('');
+  const row=(c,act)=>`<tr><td>${dmy(c.day)}</td><td>${dot(c.store_id)}${esc(SHORT[c.store_id]||c.store_id)}</td><td>${lab(c)}</td><td class="n">${c.system_qty}</td><td class="n">${c.counted_qty}</td><td class="n" style="color:var(--rd)"><b>${signed(c.counted_qty-c.system_qty).replace(' F','')}</b></td><td>${act?`<div class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn sm" data-cca="1|${c.id}">Corriger le stock</button><button class="btn sm sec" data-cca="0|${c.id}">Refuser</button></div>`:`<span class="badge ${c.status==='applied'?'b-ok':'b-gr'}">${c.status==='applied'?'corrigé':'refusé'}</span>`}</td></tr>`;
+  if(!P.length&&!H.length)return `<div class="card"><h2>${ic('clipboard-list')}Inventaire tournant</h2><p class="mu" style="margin:0">Aucun écart de comptage. Chaque jour, le caissier compte 5 articles en rayon à la clôture.</p></div>`;
+  const th='<thead><tr><th>Jour</th><th>Magasin</th><th>Article</th><th class="n">Système</th><th class="n">Compté</th><th class="n">Écart</th><th></th></tr></thead>';
+  return `<div class="card" style="${P.length?'border-left:4px solid var(--or)':''}"><h2>${ic('clipboard-list')}Inventaire tournant <small class="mu" style="font-weight:400">${P.length} écart(s) à valider</small></h2>
+  ${P.length?`<div class="tw"><table>${th}<tbody>${P.map(c=>row(c,true)).join('')}</tbody></table></div><p class="mu" style="font-size:12.5px;margin:8px 0 0">« Corriger le stock » aligne le stock du système sur le comptage du caissier (en tenant compte des ventes faites depuis).</p>`:''}
+  ${H.length?`<h3 style="margin:12px 0 4px;font-size:14px">Derniers écarts traités</h3><div class="tw"><table>${th}<tbody>${H.map(c=>row(c,false)).join('')}</tbody></table></div>`:''}</div>`;
+}
+
 /* ---------- CLÔTURE ---------- */
 function viewCloture(){
   const L=mergedSales(),t=sums(L),dayv=dvList();
   const pend=getQ().filter(x=>x.kind==='closure').length,closed=DAYCLOS||pend;
   return `<div class="kpi"><div><small>${ic('trending-up')}Ventes du jour</small><b>${fmt(t.total)}</b></div><div><small>${ic('banknote')}Espèces</small><b>${fmt(t.cash)}</b></div><div><small>${ic('smartphone')}Wave</small><b>${fmt(t.wave)}</b></div><div><small>${ic('smartphone')}Orange Money</small><b>${fmt(t.om)}</b></div><div><small>${ic('users')}Crédit</small><b>${fmt(t.credit)}</b></div></div>
+  ${cycCard()}
   <div class="card"><h2>${ic('wallet')}Versement de la recette au Central</h2>
   <div class="row"><div style="flex:1;min-width:130px"><label>Montant</label><input id="va" type="number" inputmode="numeric" min="0"></div><div style="flex:1;min-width:130px"><label>Par</label><select id="vm"><option value="wave">Wave</option><option value="om">Orange Money</option></select></div></div>
   <label>Référence de la transaction</label><input id="vr"><button class="btn big" style="margin-top:12px" id="vgo">${ic('wallet',20)}Envoyer le versement</button>
@@ -438,6 +504,7 @@ function viewCloture(){
 }
 function dvList(){const ids=new Set(DAYVERS.map(v=>v.id));const l=DAYVERS.map(v=>({...v}));for(const it of getQ())if(it.kind==='versement'&&!ids.has(it.payload.id))l.push({...it.payload,created_at:it.at,local:true});return l.sort((a,b)=>b.created_at.localeCompare(a.created_at))}
 function bindCloture(){
+  bindCyc();
   $('#vgo').onclick=()=>{
     const amount=Math.round(+$('#va').value||0);if(amount<=0){toast('Saisissez le montant');return}
     if(!confirm('Envoyer un versement de '+fmt(amount)+' ?'))return;
@@ -466,13 +533,13 @@ const dmyFull=d=>d.split('-').reverse().join('/');
 const signed=n=>(n>=0?'+':'−')+fmt(Math.abs(n));
 const compact=n=>Math.round(n).toLocaleString('fr-FR').replace(/[  ]/g,' ');
 const WD=['dim','lun','mar','mer','jeu','ven','sam'];
-let D={per:'7',caPer:'week',closuresAll:[],hist:[],cbal:[],profiles:[],summary:[],sellers:[],alerts:[],exp:[],credits:[],recent:[],status:[],vers:[],closures:[],vendors:[],stock:{},arts:[],store:'SAN',imp:null,rapp:LS.get('rapp',{tel:'',mail:''})};
+let D={costs:{},recv:[],cycles:[],reports:[],per:'7',caPer:'week',closuresAll:[],hist:[],cbal:[],profiles:[],summary:[],sellers:[],alerts:[],exp:[],credits:[],recent:[],status:[],vers:[],closures:[],vendors:[],stock:{},arts:[],store:'SAN',imp:null,rapp:LS.get('rapp',{tel:'',mail:''})};
 let rt=null,rtT=null;
 async function loadDirector(){
   try{
     D.arts=await cached('arts_d',()=>qAll(()=>sb.from('articles').select('*').order('name')));
     if(me.role==='central'){D.stock.CEN=await cached('stk_CEN',()=>qAll(()=>sb.from('stock').select('article_id,size,color,qty').eq('store_id','CEN').order('article_id')));return}
-    const [summary,sellers,alerts,exp,credits,recent,status,vers,closures,vendors,hist,cbal,profiles]=await Promise.all([
+    const [summary,sellers,alerts,exp,credits,recent,status,vers,closures,vendors,hist,cbal,profiles,costs,recv,cycles,reports]=await Promise.all([
       q(sb.from('daily_summary').select('*').gte('day',dayStr(729))),
       q(sb.from('daily_sellers').select('*').gte('day',dayStr(29))),
       q(sb.from('stock_alerts').select('*')),
@@ -485,8 +552,12 @@ async function loadDirector(){
       q(sb.from('vendors').select('id,full_name,store_id,active').order('full_name')),
       q(sb.from('history_daily').select('*').gte('day',dayStr(730))),
       q(sb.from('central_balance').select('*')),
-      q(sb.from('profiles').select('id,full_name,role,store_id,active'))]);
-    Object.assign(D,{summary,sellers,alerts,exp,credits,recent,status,vers,closuresAll:closures,closures:closures.filter(c=>c.day===dayStr(0)),vendors,hist,cbal,profiles});
+      q(sb.from('profiles').select('id,full_name,role,store_id,active')),
+      q(sb.from('article_costs').select('article_id,cost_price')),
+      q(sb.from('reception_checks').select('*,reception_items(*)').eq('status','ecart').order('received_at',{ascending:false}).limit(60)),
+      q(sb.from('cycle_counts').select('*').gte('day',dayStr(30)).order('created_at',{ascending:false}).limit(200)),
+      q(sb.from('daily_reports').select('day,body').order('day',{ascending:false}).limit(10))]);
+    Object.assign(D,{costs:Object.fromEntries(costs.map(c=>[c.article_id,c.cost_price])),recv,cycles,reports,summary,sellers,alerts,exp,credits,recent,status,vers,closuresAll:closures,closures:closures.filter(c=>c.day===dayStr(0)),vendors,hist,cbal,profiles});
   }catch(e){toast('Connexion impossible : '+(e.message||e))}
 }
 async function loadDirStock(st){
@@ -503,7 +574,7 @@ function subscribeRT(){
 }
 function drawDirector(){
   const central=me.role==='central';
-  const tabs=central?[['stock',ic('store')+'Stock du Central'],['central',ic('file-text')+'Factures aux magasins']]:[['apercu',ic('layout-dashboard')+'Tableau de bord'],['stock',ic('package')+'Stock'],['achats',ic('arrow-left-right')+'Achats / transferts'],['central',ic('store')+'Magasin Central'+(pendingVers()?` <span class="badge b-bad">${pendingVers()}</span>`:'')],['bons',ic('clipboard-list')+'Commandes / BL'],['depenses',ic('wallet')+'Dépenses'],['credits',ic('users')+'Crédits clients'],['retours',ic('undo-2')+'Retours'],['stats',ic('trending-up')+'Statistiques'],['import',ic('clipboard-list')+'Excel / CSV'],['param',ic('settings')+'Paramètres']];
+  const tabs=central?[['stock',ic('store')+'Stock du Central'],['central',ic('file-text')+'Factures aux magasins']]:[['apercu',ic('layout-dashboard')+'Tableau de bord'],['stock',ic('package')+'Stock'+(cycPending().length?` <span class="badge b-bad">${cycPending().length}</span>`:'')],['achats',ic('arrow-left-right')+'Achats / transferts'],['central',ic('store')+'Magasin Central'+(pendingVers()+recvOpen().length?` <span class="badge b-bad">${pendingVers()+recvOpen().length}</span>`:'')],['bons',ic('clipboard-list')+'Commandes / BL'],['depenses',ic('wallet')+'Dépenses'],['credits',ic('users')+'Crédits clients'],['retours',ic('undo-2')+'Retours'],['stats',ic('trending-up')+'Statistiques'],['import',ic('clipboard-list')+'Excel / CSV'],['param',ic('settings')+'Paramètres']];
   let b='';
   if(S.tab==='apercu')b=dirOverview();
   else if(S.tab==='central')b=dirCentral();
@@ -530,8 +601,8 @@ function drawDirector(){
   if(S.tab==='import')bindImport();
 }
 const pendingVers=()=>D.vers.filter(v=>v.status==='pending').length;
-const perLabel=()=>D.per==='1'?'aujourd’hui':D.per==='30'?'30 jours':'7 jours';
-function perBar(){return `<div class="modes" id="per">${[['1','Aujourd’hui'],['7','7 jours'],['30','30 jours']].map(x=>`<button data-p="${x[0]}" class="${D.per===x[0]?'on':''}">${x[1]}</button>`).join('')}</div>`}
+const perLabel=()=>D.per==='1'?'aujourd’hui':D.per==='30'?'30 jours':D.per==='90'?'3 mois':'7 jours';
+function perBar(){return `<div class="modes" id="per">${[['1','Aujourd’hui'],['7','7 jours'],['30','30 jours'],['90','3 mois']].map(x=>`<button data-p="${x[0]}" class="${D.per===x[0]?'on':''}">${x[1]}</button>`).join('')}</div>`}
 const sumBy=(a,f)=>a.reduce((t,x)=>t+f(x),0);
 const recDay=(d,st)=>sumBy(D.summary.filter(r=>r.day===d&&(!st||r.store_id===st)),r=>+r.cash+ +r.wave+ +r.om);
 const depDay=(d,st)=>sumBy(D.exp.filter(e=>e.day===d&&(!st||e.store_id===st)),e=>e.amount);
@@ -576,6 +647,7 @@ function rapportText(){
   const ec=D.closures.filter(c=>c.counted_cash!=null&&c.counted_cash!==c.cash);
   t.push(ec.length?'Écarts de caisse :':'Écarts de caisse : aucun');ec.forEach(c=>t.push('• '+SHORT[c.store_id]+' : '+signed(c.counted_cash-c.cash)));
   const nc=SHOPS.filter(s=>!D.closures.some(c=>c.store_id===s));if(nc.length)t.push('Caisse non clôturée : '+nc.map(s=>SHORT[s]).join(', '));
+  const rg=recvOpen().length,cp=cycPending().length;if(rg)t.push('Écarts de réception à traiter : '+rg);if(cp)t.push('Comptages à valider : '+cp);
   t.push('');const rp=D.alerts.filter(a=>a.qty<=0).map(a=>a.name+' ('+SHORT[a.store_id]+')');t.push(rp.length?'Ruptures : '+rp.join(', '):'Ruptures : aucune');
   const late=D.credits.filter(c=>c.amount>c.paid&&c.due_date&&c.due_date<today);t.push('Crédits en retard : '+fmt(sumBy(late,c=>c.amount-c.paid))+' ('+late.length+')');
   return t.join('\n');
@@ -663,19 +735,21 @@ function dirOverview(){
   <div class="grid2"><div class="card"><h2>Solde journalier</h2><div class="tw" style="max-height:340px;overflow-y:auto"><table><thead><tr><th>Jour</th><th class="n">Recettes</th><th class="n">Dépenses</th><th class="n">Solde</th></tr></thead><tbody>${drows}</tbody></table></div></div>
   <div class="card"><h2>Stock à surveiller <small class="mu" style="font-weight:400">${D.alerts.length} alertes</small></h2><table><thead><tr><th>Article</th><th>Magasin</th><th class="n">Stock</th></tr></thead><tbody>${al8}</tbody></table></div></div>
   <div class="card"><h2>Dernières ventes</h2><div class="tw"><table><thead><tr><th>Heure</th><th>Magasin</th><th>Vendeur</th><th>Client</th><th>Paiement</th><th class="n">Montant</th></tr></thead><tbody>${rec}</tbody></table></div></div>
-  <div class="card"><h2>Rapport du soir <small class="mu" style="font-weight:400">résumé prêt à envoyer</small></h2><pre id="rtx" style="white-space:pre-wrap;background:#f4f6f4;border-radius:10px;padding:10px;font:13px/1.45 ui-monospace,monospace">${esc(rapportText())}</pre>
-  <div class="row"><div style="flex:1;min-width:160px"><label>WhatsApp du Directeur</label><input id="rt" type="tel" inputmode="tel" placeholder="77 000 00 00" value="${esc(D.rapp.tel)}"></div><div style="flex:1;min-width:160px"><label>E-mail</label><input id="rmm" type="email" placeholder="nom@exemple.com" value="${esc(D.rapp.mail)}"></div><div style="flex:1;min-width:140px"><label>Heure d’envoi automatique</label><input id="rhh" type="time" value="${esc(D.rapp.heure||'20:30')}"></div></div>
+  <div class="card"><h2>Rapport du soir <small class="mu" style="font-weight:400">enregistré automatiquement chaque soir à 20 h 30</small></h2><div class="row" style="margin-bottom:8px;align-items:flex-end"><div style="flex:2;min-width:200px"><label style="margin-top:0">Rapport affiché</label><select id="rsel"><option value="">Aujourd’hui, en direct</option>${D.reports.map(r=>`<option value="${r.day}">Enregistré : ${dmyFull(r.day)}</option>`).join('')}</select></div><button class="btn sm sec" id="rnow">Enregistrer maintenant</button></div><pre id="rtx" style="white-space:pre-wrap;background:#f4f6f4;border-radius:10px;padding:10px;font:13px/1.45 ui-monospace,monospace">${esc(rapportText())}</pre>
+  <div class="row"><div style="flex:1;min-width:160px"><label>WhatsApp du Directeur</label><input id="rt" type="tel" inputmode="tel" placeholder="77 000 00 00" value="${esc(D.rapp.tel)}"></div><div style="flex:1;min-width:160px"><label>E-mail</label><input id="rmm" type="email" placeholder="nom@exemple.com" value="${esc(D.rapp.mail)}"></div></div>
   <div class="row" style="margin-top:12px"><button class="btn" id="rwa">${ic('smartphone',16)}Envoyer par WhatsApp</button><button class="btn sec" id="rem">E-mail</button><button class="btn sec" id="rcp">Copier</button></div></div>
   ${closBlock()}${dueBlock()}`;
 }
 function bindOverview(){
   document.querySelectorAll('#per button').forEach(b=>b.onclick=()=>{D.per=b.dataset.p;draw()});
   const g=$('#gov');if(g)g.onclick=()=>{S.tab='central';draw()};
-  const sv=()=>{D.rapp={tel:$('#rt').value,mail:$('#rmm').value,heure:$('#rhh').value||'20:30'};LS.set('rapp',D.rapp)};
-  $('#rwa').onclick=()=>{sv();let d=D.rapp.tel.replace(/\D/g,'');if(d.length<9){toast('Saisissez le numéro WhatsApp (9 chiffres).');return}if(d.length===9)d='221'+d;window.open('https://wa.me/'+d+'?text='+encodeURIComponent(rapportText()),'_blank')};
-  $('#rem').onclick=()=>{sv();if(!/.+@.+/.test(D.rapp.mail)){toast('Saisissez une adresse e-mail valide.');return}location.href='mailto:'+D.rapp.mail+'?subject='+encodeURIComponent('Rapport du soir MINANE SHOP — '+dmyFull(dayStr(0)))+'&body='+encodeURIComponent(rapportText())};
-  $('#rcp').onclick=()=>{sv();try{navigator.clipboard.writeText(rapportText()).then(()=>toast('Rapport copié.'),()=>toast('Sélectionnez le texte puis copiez.'))}catch{toast('Sélectionnez le texte puis copiez.')}};
-  ['rt','rmm','rhh'].forEach(i=>$('#'+i).onchange=sv);
+  const sv=()=>{D.rapp={tel:$('#rt').value,mail:$('#rmm').value};LS.set('rapp',D.rapp)};const RT=()=>$('#rtx').textContent;
+  $('#rsel').onchange=()=>{const r=D.reports.find(x=>x.day===$('#rsel').value);$('#rtx').textContent=r?r.body:rapportText()};
+  $('#rnow').onclick=async()=>{try{await q(sb.rpc('report_now'));await loadDirector();draw();toast('Rapport enregistré')}catch(e){toast('Erreur : '+(e.message||e))}};
+  $('#rwa').onclick=()=>{sv();let d=D.rapp.tel.replace(/\D/g,'');if(d.length<9){toast('Saisissez le numéro WhatsApp (9 chiffres).');return}if(d.length===9)d='221'+d;window.open('https://wa.me/'+d+'?text='+encodeURIComponent(RT()),'_blank')};
+  $('#rem').onclick=()=>{sv();if(!/.+@.+/.test(D.rapp.mail)){toast('Saisissez une adresse e-mail valide.');return}location.href='mailto:'+D.rapp.mail+'?subject='+encodeURIComponent('Rapport du soir MINANE SHOP — '+dmyFull(dayStr(0)))+'&body='+encodeURIComponent(RT())};
+  $('#rcp').onclick=()=>{sv();try{navigator.clipboard.writeText(RT()).then(()=>toast('Rapport copié.'),()=>toast('Sélectionnez le texte puis copiez.'))}catch{toast('Sélectionnez le texte puis copiez.')}};
+  ['rt','rmm'].forEach(i=>$('#'+i).onchange=sv);
   document.querySelectorAll('#caper button').forEach(b=>b.onclick=()=>{D.caPer=b.dataset.k;draw()});
   document.querySelectorAll('[data-ca]').forEach(b=>b.onclick=async()=>{
     const [act,id]=b.dataset.ca.split('|'),now=new Date().toISOString();
@@ -715,11 +789,43 @@ async function loadMoves(){
   MOVES_LOADED=true;
   try{MOVES=await q(sb.from('stock_moves').select('id,store_id,article_id,size,color,delta,reason,note,created_at').in('reason',['purchase','transfer_out']).order('created_at',{ascending:false}).limit(15))}catch(e){MOVES=[]}
 }
+
+/* ---------- RÉAPPROVISIONNEMENT SUGGÉRÉ ---------- */
+function reaproPlan(){
+  const cen=D.stock.CEN||[],plan={};
+  for(const a of D.alerts.slice().sort((x,y)=>x.qty-y.qty)){
+    const th=+a.threshold||0,target=Math.max(2*th,th+5),need=Math.max(1,target-a.qty);
+    const lines=cen.filter(r=>r.article_id===a.article_id&&r.qty>0).sort((x,y)=>y.qty-x.qty),avail=sumBy(lines,r=>r.qty);
+    (plan[a.store_id]||(plan[a.store_id]=[])).push({a,need,avail,give:Math.min(need,avail),lines});
+  }
+  return plan;
+}
+function allocLines(lines,n){const out=[];let left=n;for(const r of lines){if(left<=0)break;const t=Math.min(left,r.qty);out.push({article_id:r.article_id,size:r.size,color:r.color,qty:t});left-=t}return out}
+function reaproCard(){
+  if(!D.stock.CEN)return `<div class="card mu">Chargement du stock du Central…</div>`;
+  const plan=reaproPlan(),ks=Object.keys(plan);
+  if(!ks.length)return `<div class="card"><h2>${ic('truck')}Réapprovisionnement suggéré</h2><p class="mu" style="margin:0">Aucun article sous son seuil d’alerte dans les magasins.</p></div>`;
+  return `<div class="card"><h2>${ic('truck')}Réapprovisionnement suggéré <small class="mu" style="font-weight:400">depuis le Magasin Central</small></h2>
+  <p class="mu" style="margin:0 0 8px;font-size:13px">Pour chaque article sous son seuil, le système propose de remonter à environ deux fois le seuil, dans la limite du stock du Central. Ajustez les quantités puis transférez.</p>
+  ${ks.map(st=>`<h3 style="margin:12px 0 4px;font-size:14px">${dot(st)}${esc(STORES[st])}</h3><div class="tw"><table><thead><tr><th>Article</th><th class="n">Stock</th><th class="n">Seuil</th><th class="n">Au Central</th><th class="n">À envoyer</th></tr></thead><tbody>${plan[st].map(p=>`<tr><td>${esc(p.a.name)}</td><td class="n"><span class="badge ${p.a.qty<=0?'b-bad':'b-wait'}">${p.a.qty}</span></td><td class="n">${p.a.threshold}</td><td class="n">${p.avail||'<span class="badge b-bad">rupture</span>'}</td><td class="n" style="width:90px"><input type="number" min="0" max="${p.avail}" value="${p.give}" ${p.avail?'':'disabled'} data-rp="${esc(st)}|${esc(p.a.article_id)}" style="padding:6px;text-align:right"></td></tr>`).join('')}</tbody></table></div><button class="btn sm" style="margin-top:8px" data-rgo="${esc(st)}">${ic('arrow-left-right',16)}Transférer vers ${esc(SHORT[st]||st)}</button> <span class="err" data-rerr="${esc(st)}"></span>`).join('')}</div>`;
+}
+function bindReapro(){
+  if(!D.stock.CEN)loadDirStock('CEN').then(()=>{if(S.tab==='achats')draw()});
+  document.querySelectorAll('[data-rgo]').forEach(b=>b.onclick=async()=>{
+    const st=b.dataset.rgo,plan=reaproPlan()[st]||[],items=[],er=document.querySelector('[data-rerr="'+st+'"]');
+    for(const p of plan){const inp=document.querySelector('[data-rp="'+st+'|'+p.a.article_id+'"]');if(!inp||inp.disabled)continue;const n=Math.max(0,Math.min(p.avail,Math.round(+inp.value||0)));if(n>0)items.push(...allocLines(p.lines,n))}
+    if(!items.length){er.textContent='Aucune quantité à envoyer.';return}
+    const tot=sumBy(items,i=>i.qty);if(!confirm('Transférer '+tot+' pièce(s) du Central vers '+STORES[st]+' ?'))return;
+    b.disabled=true;
+    try{await q(sb.rpc('record_transfer',{p_from:'CEN',p_to:st,p_items:items}));toast('Transfert effectué : '+tot+' pièce(s) vers '+(SHORT[st]||st));D.stock.CEN=null;D.stock[st]=null;await Promise.all([loadMoves(),loadDirector(),loadDirStock('CEN')]);draw()}
+    catch(e){er.textContent='Erreur : '+(e.message||e);b.disabled=false}
+  });
+}
 function dirAchats(){
   const so=Object.keys(STORES).map(k=>`<option value="${k}">${esc(STORES[k])}</option>`).join(''),ao=D.arts.map(a=>`<option value="${esc(a.id)}">${esc(a.name)}</option>`).join('');
   const aname=id=>(D.arts.find(a=>a.id===id)||{name:id}).name;
   const hist=MOVES.map(m=>`<tr><td>${dtFr(m.created_at)}</td><td><span class="badge ${m.reason==='purchase'?'b-ok':'b-wait'}">${m.reason==='purchase'?'Achat':'Transfert'}</span></td><td>${esc(aname(m.article_id))}${[m.size&&' · P'+m.size,m.color&&' · '+m.color].filter(Boolean).join('')}</td><td class="n">${Math.abs(m.delta)}</td><td>${m.reason==='purchase'?esc(m.note||'')+' → '+esc(STORES[m.store_id]):esc((m.note||'').replace(/[A-Z]{3}/g,x=>STORES[x]||x))}</td></tr>`).join('')||'<tr><td colspan="5" class="mu">Aucun mouvement.</td></tr>';
-  return `<div class="grid2" style="grid-template-columns:1fr 1fr"><div class="card"><h2>${ic('truck')}Réception d’achat</h2>
+  return `${reaproCard()}<div class="grid2" style="grid-template-columns:1fr 1fr"><div class="card"><h2>${ic('truck')}Réception d’achat</h2>
   <label>Magasin</label><select id="as">${so}</select><label>Fournisseur</label><input id="af" placeholder="Ex. Ets Diallo Cuir"><label>Article</label><select id="aa">${ao}</select>
   <div id="asz"><label>Pointure</label><input id="aszv" inputmode="numeric" placeholder="Ex. 42"></div><div id="acl"><label>Couleur</label><input id="aclv" placeholder="Ex. Noir"></div>
   <div class="row"><div style="flex:1"><label>Quantité</label><input id="aq" type="number" min="1" value="10"></div><div style="flex:1"><label>Coût unitaire (F)</label><input id="ac" type="number" min="0" value="0"></div></div>
@@ -732,6 +838,7 @@ function dirAchats(){
   <div class="card"><h2>Derniers mouvements</h2><div class="tw"><table><thead><tr><th>Date</th><th>Type</th><th>Article</th><th class="n">Qté</th><th>Détail</th></tr></thead><tbody>${hist}</tbody></table></div></div>`;
 }
 function bindAchats(){
+  bindReapro();
   const art=id=>D.arts.find(a=>a.id===id);
   const aUpd=()=>{const a=art($('#aa').value)||{};$('#asz').style.display=a.has_sizes?'':'none';$('#acl').style.display=a.has_colors?'':'none'};
   $('#aa').onchange=aUpd;aUpd();
@@ -771,13 +878,58 @@ function bindVers(){
   document.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{if(confirm('Refuser ce versement ?'))act(b.dataset.r,'rejected')});
 }
 
+
+/* ---------- CONTRÔLE À LA RÉCEPTION (Central vers magasin) ---------- */
+const REC={list:[],checks:new Set(),loaded:false,busy:false};
+async function loadRecv(){
+  REC.loaded=true;
+  try{
+    REC.list=await q(sb.from('central_invoices').select('id,invoice_no,issued_at,total,central_invoice_items(*)').eq('store_id',me.store_id).gte('issued_at',dayStr(60)+'T00:00:00Z').order('issued_at',{ascending:false}));
+    REC.checks=new Set((await q(sb.from('reception_checks').select('invoice_id').eq('store_id',me.store_id))).map(x=>x.invoice_id));
+  }catch(e){toast('Réceptions : chargement impossible')}
+}
+function recvBlock(){
+  if(me.role!=='cashier')return '';
+  const aname=id=>(ARTS.find(a=>a.id===id)||{name:id}).name,p=REC.list.filter(i=>!REC.checks.has(i.id));
+  if(!REC.loaded)return `<div class="card mu">Chargement des livraisons du Central…</div>`;
+  if(!p.length)return `<div class="card"><h2>${ic('truck')}Livraisons du Central <small class="mu" style="font-weight:400">à réceptionner</small></h2><p class="mu" style="margin:0">Aucune livraison en attente. Quand le Central vous envoie des articles, comptez-les ici dès l’arrivée.</p></div>`;
+  return p.map(i=>`<div class="card" style="border-left:4px solid var(--or)"><h2>${ic('truck')}Livraison du Central à réceptionner <small class="mu" style="font-weight:400">${esc(i.invoice_no)} · ${dtFr(i.issued_at)}</small></h2>
+  <p class="mu" style="margin:0 0 8px;font-size:13px">Comptez ce que vous avez réellement reçu. Si la quantité est plus petite, le manque est signalé au Directeur.</p>
+  <div class="tw"><table><thead><tr><th>Article</th><th class="n">Envoyé</th><th class="n">Reçu</th></tr></thead><tbody>${(i.central_invoice_items||[]).map((x,k)=>`<tr><td>${esc(aname(x.article_id))}${[x.size&&' · P'+x.size,x.color&&' · '+x.color].filter(Boolean).join('')}</td><td class="n">${x.qty}</td><td class="n" style="width:90px"><input type="number" min="0" max="${x.qty}" value="${x.qty}" data-rq="${i.id}|${k}" style="padding:6px;text-align:right"></td></tr>`).join('')}</tbody></table></div>
+  <label>Remarque (facultatif)</label><input data-rn="${i.id}" placeholder="Ex. carton abîmé"><button class="btn big" style="margin-top:10px" data-rok="${i.id}">${ic('check',20)}Confirmer la réception</button><div class="err" data-re="${i.id}"></div></div>`).join('');
+}
+function bindRecv(){
+  if(!REC.loaded&&!REC.busy){REC.busy=true;loadRecv().then(()=>{REC.busy=false;if(S.tab==='livraisons')draw()})}
+  document.querySelectorAll('[data-rok]').forEach(b=>b.onclick=async()=>{
+    const id=b.dataset.rok,inv=REC.list.find(x=>x.id===id),er=document.querySelector('[data-re="'+id+'"]');
+    if(!navigator.onLine){er.textContent='Il faut internet pour confirmer la réception.';return}
+    const items=(inv.central_invoice_items||[]).map((x,k)=>({article_id:x.article_id,size:x.size,color:x.color,received:Math.max(0,Math.min(x.qty,Math.round(+document.querySelector('[data-rq="'+id+'|'+k+'"]').value||0)))}));
+    const gap=(inv.central_invoice_items||[]).reduce((t,x,k)=>t+x.qty-items[k].received,0);
+    if(gap>0&&!confirm('Il manque '+gap+' pièce(s). Le stock du magasin sera corrigé et le Directeur sera prévenu. Continuer ?'))return;
+    b.disabled=true;
+    try{const r=await q(sb.rpc('record_reception',{p_invoice:id,p_items:items,p_note:document.querySelector('[data-rn="'+id+'"]').value}));REC.checks.add(id);toast(r==='ecart'?'Réception enregistrée avec écart':'Réception conforme');await loadCashier();draw()}
+    catch(e){er.textContent='Erreur : '+(e.message||e);b.disabled=false}
+  });
+}
+const recvOpen=()=>D.recv.filter(r=>!r.resolved);
+function recvDir(){
+  const aname=id=>(D.arts.find(a=>a.id===id)||{name:id}).name,inv=id=>(CINV.find(i=>i.id===id)||{}),op=recvOpen();
+  const late=CINV.filter(i=>i.store_id&&!CHK.has(i.id)&&Date.now()-new Date(i.issued_at)>48*36e5);
+  const rows=op.map(c=>{const it=(c.reception_items||[]).filter(x=>x.received_qty<x.invoiced_qty);
+    return `<tr><td><b>${esc(inv(c.invoice_id).invoice_no||'')}</b><div class="mu" style="font-size:12px">${dtFr(c.received_at)}</div></td><td>${dot(c.store_id)}${esc(SHORT[c.store_id]||c.store_id)}</td><td>${it.map(x=>esc(aname(x.article_id))+[x.size&&' · P'+x.size,x.color&&' · '+x.color].filter(Boolean).join('')+' : <b style="color:var(--rd)">'+x.received_qty+'/'+x.invoiced_qty+'</b>').join('<br>')}${c.note?'<div class="mu" style="font-size:12px">« '+esc(c.note)+' »</div>':''}</td><td><div class="row" style="gap:6px;flex-wrap:nowrap"><input id="rrn-${c.id}" placeholder="Note" style="padding:6px;width:130px"><button class="btn sm sec" data-rres="${c.id}">Marquer traité</button></div></td></tr>`}).join('');
+  if(!op.length&&!late.length)return `<div class="card"><h2>${ic('truck')}Réceptions du Central <small class="mu" style="font-weight:400">contrôle des quantités reçues</small></h2><p class="mu" style="margin:0">Aucun écart et aucune livraison en attente de réception.</p></div>`;
+  return `<div class="card" style="border-left:4px solid var(--or)"><h2>${ic('truck')}Réceptions du Central <small class="mu" style="font-weight:400">${op.length} écart(s) à traiter · ${late.length} non réceptionnée(s) depuis plus de 48 h</small></h2>
+  ${op.length?`<div class="tw"><table><thead><tr><th>Facture</th><th>Magasin</th><th>Manquants (reçu/envoyé)</th><th></th></tr></thead><tbody>${rows}</tbody></table></div><p class="mu" style="font-size:12.5px;margin:8px 0 0">Le stock du magasin a été corrigé du manquant. Le Central garde la facture : à vous de décider si le manque est une perte, une erreur de comptage ou à retrouver.</p>`:''}
+  ${late.length?`<h3 style="margin:12px 0 4px;font-size:14px">Livraisons non réceptionnées</h3><div class="tw"><table><tbody>${late.map(i=>`<tr><td><b>${esc(i.invoice_no)}</b></td><td>${esc(SHORT[i.store_id]||i.store_id)}</td><td class="mu">${dtFr(i.issued_at)}</td><td class="n">${fmt(i.total)}</td></tr>`).join('')}</tbody></table></div>`:''}</div>`;
+}
+
 /* ---------- MAGASIN CENTRAL : factures, règlements, situation ---------- */
-const CV={lines:[],to:'SAN',client:'',phone:''};let CINV=[],CLOADED=false,CCLI=[];
+const CV={lines:[],to:'SAN',client:'',phone:''};let CINV=[],CLOADED=false,CCLI=[],CHK=new Set();
 const vwho=v=>v.client_name?v.client_name+' (grossiste)':(STORES[v.store_id]||v.store_id);
 const iwho=i=>i.client_name?i.client_name+' (grossiste)':STORES[i.store_id];
 async function loadCentral(){
   CLOADED=true;
-  try{CINV=await q(sb.from('central_invoices').select('*,central_invoice_items(*)').order('issued_at',{ascending:false}).limit(100));D.cbal=await q(sb.from('central_balance').select('*'));CCLI=await q(sb.from('central_clients').select('*'));await loadDirStock('CEN')}catch(e){toast('Chargement impossible : '+(e.message||e))}
+  try{CINV=await q(sb.from('central_invoices').select('*,central_invoice_items(*)').order('issued_at',{ascending:false}).limit(100));D.cbal=await q(sb.from('central_balance').select('*'));CCLI=await q(sb.from('central_clients').select('*'));if(me.role!=='central')CHK=new Set((await q(sb.from('reception_checks').select('invoice_id'))).map(x=>x.invoice_id));await loadDirStock('CEN')}catch(e){toast('Chargement impossible : '+(e.message||e))}
 }
 const invPaid=(st)=>{const b=D.cbal.find(x=>x.store_id===st)||{invoiced:0,paid:0};return b};
 function dirCentral(){
@@ -794,7 +946,7 @@ function dirCentral(){
   const reg=D.vers.filter(v=>v.status==='confirmed').slice(0,10).map(v=>`<tr><td>${dtFr(v.confirmed_at||v.created_at)}</td><td>${esc(vwho(v))}</td><td>${v.method==='wave'?'Wave':v.method==='om'?'OM':'Espèces'}${v.reference?' · '+esc(v.reference):''}</td><td class="n">${fmt(v.amount)}</td></tr>`).join('')||'<tr><td colspan="4" class="mu">Aucun règlement.</td></tr>';
   const lines=CV.lines.length?`<table><thead><tr><th>Article</th><th class="n">Qté</th><th class="n">Prix</th><th class="n">Montant</th><th></th></tr></thead><tbody>${CV.lines.map((l,i)=>`<tr><td>${esc(aname(l.article_id))}${[l.size&&' · P'+l.size,l.color&&' · '+l.color].filter(Boolean).join('')}</td><td class="n">${l.qty}</td><td class="n">${fmt(l.price)}</td><td class="n">${fmt(l.qty*l.price)}</td><td><button class="btn sm sec" data-rm="${i}">×</button></td></tr>`).join('')}<tr><td colspan="3" class="n"><b>Total</b></td><td class="n"><b>${fmt(tot)}</b></td><td></td></tr></tbody></table>`:'<p class="mu" style="font-size:13px">Aucune ligne. Choisissez un article puis « Ajouter la ligne ».</p>';
   return `<div class="kpi"><div><small>${ic('package')}Stock du Central</small><b>${pcs}</b><small>pièces</small></div><div><small>${ic('store')}Dû par les magasins</small><b style="color:${due?'var(--rd)':'inherit'}">${fmt(due)}</b><small>factures moins versements confirmés</small></div><div><small>${ic('wallet')}Versements à confirmer</small><b>${pendingVers()}</b><small>envoyés par les caissiers</small></div></div>
-  ${isC?'':dirVers()}
+  ${isC?'':dirVers()+recvDir()}
   <div class="card"><h2>${ic('store')}Situation par magasin <small class="mu" style="font-weight:400">facturé par le Central, réglé, reste dû</small></h2><div class="tw"><table><thead><tr><th>Magasin</th><th class="n">Facturé</th><th class="n">Réglé</th><th class="n">Reste dû</th><th class="n">Avance</th></tr></thead><tbody>${sit}</tbody></table></div></div>
   ${CCLI.length?`<div class="card"><h2>${ic('users')}Grossistes <small class="mu" style="font-weight:400">facturé, réglé, reste dû</small></h2><div class="tw"><table><thead><tr><th>Grossiste</th><th class="n">Facturé</th><th class="n">Réglé</th><th class="n">Reste dû</th></tr></thead><tbody>${CCLI.map(c=>`<tr><td><b>${esc(c.client_name)}</b></td><td class="n">${fmt(c.invoiced)}</td><td class="n">${fmt(c.paid)}</td><td class="n"><b style="color:${c.invoiced>c.paid?'var(--rd)':'inherit'}">${fmt(Math.max(0,c.invoiced-c.paid))}</b></td></tr>`).join('')}</tbody></table></div></div>`:''}
   <div class="grid2" style="grid-template-columns:1fr 1fr"><div class="card"><h2>${ic('file-text')}Nouvelle facture <small class="mu" style="font-weight:400">prix de gros</small></h2>
@@ -827,7 +979,7 @@ function printInvoice(i){
 }
 function bindCentral(){
   if(!CLOADED){loadCentral().then(()=>{if(S.tab==='central')draw()})}
-  if(me.role!=='central')bindVers();
+  if(me.role!=='central'){bindVers();document.querySelectorAll('[data-rres]').forEach(b=>b.onclick=async()=>{const id=b.dataset.rres,n=($('#rrn-'+id).value||'').trim();try{await q(sb.from('reception_checks').update({resolved:true,resolved_note:n||null,resolved_at:new Date().toISOString()}).eq('id',id).select('id'));await loadDirector();draw()}catch(e){toast('Erreur : '+(e.message||e))}})}
   const art=id=>D.arts.find(a=>a.id===id),cen=D.stock.CEN||[];
   let rows=[];
   const upd=()=>{const id=$('#cta').value;rows=cen.filter(r=>r.article_id===id&&r.qty>0);
@@ -1023,8 +1175,11 @@ function dirParam(){
   <div class="row" style="margin-top:12px"><div style="flex:2;min-width:160px"><label>Nom du vendeur</label><input id="vn"></div><div style="flex:2;min-width:160px"><label>Magasin</label><select id="vs">${shopOpts}</select></div></div>
   <button class="btn" id="vg" style="margin-top:10px">${ic('plus')}Ajouter le vendeur</button><div class="err" id="verr"></div></div>
   <div class="card"><h2>${ic('triangle-alert')}Alertes de stock <small class="mu" style="font-weight:400">réglées par la Direction</small></h2><div class="row"><div style="flex:1;min-width:130px"><label>Seuil général (pièces)</label><input id="sg" type="number" min="0" value="${SET.seuil}"></div><div style="flex:1;min-width:130px"><label>Article cher à partir de (F)</label><input id="sp" type="number" min="0" value="${SET.cher_min}"></div><div style="flex:1;min-width:130px"><label>Seuil article cher (pièces)</label><input id="sc" type="number" min="0" value="${SET.seuil_cher}"></div></div><button class="btn" id="ssv" style="margin-top:10px">${ic('check')}Enregistrer les seuils</button><p class="mu" style="font-size:12.5px;margin:8px 0 0">Une alerte apparaît quand le stock d’un article dans un magasin est inférieur ou égal à son seuil. Un seuil propre à un article (tableau plus bas) remplace ces valeurs.</p></div>
+  <div class="card"><h2>${ic('banknote')}Remises <small class="mu" style="font-weight:400">plafond et code du Directeur</small></h2><div class="row" style="align-items:flex-end"><div style="flex:1;min-width:150px"><label>Remise maximale sans code (% du ticket)</label><input id="rmx" type="number" min="0" max="100" value="${+SET.remise_max_pct>=0?SET.remise_max_pct:10}"></div><button class="btn sm" id="rms">Enregistrer</button></div>
+  <div class="row" style="margin-top:12px;align-items:flex-end"><div style="flex:1;min-width:150px"><label>Code du Directeur (6 chiffres ou plus)</label><input id="rcd" type="password" inputmode="numeric" autocomplete="new-password" placeholder="${SET.remise_code?'Code défini : saisir un nouveau code pour le changer':'Aucun code défini'}"></div><button class="btn sm" id="rcs">Définir le code</button>${SET.remise_code?'<button class="btn sm sec" id="rcr">Supprimer le code</button>':''}</div>
+  <p class="mu" style="font-size:12.5px;margin:8px 0 0">Au-delà du plafond, le caissier doit saisir ce code, que seul le Directeur connaît. Toutes les remises sont visibles dans Statistiques, avec celles qui ont demandé le code. Sans code défini, aucune remise au-delà du plafond n’est possible. Le code est vérifié sur le téléphone du caissier, même sans internet : il protège contre l’usage courant, pas contre une personne qui voudrait le percer par des moyens techniques.</p></div>
   <div class="card"><h2>${ic('smartphone')}Paiements Wave et Orange Money <small class="mu" style="font-weight:400">numéro et QR de chaque point de vente</small></h2><div class="tw"><table><thead><tr><th>Point de vente</th><th>N° Wave</th><th>N° Orange Money</th><th>QR Wave</th></tr></thead><tbody>${['CEN',...SHOPS].map(k=>{const py=payOf(k);return `<tr><td>${k==='CEN'?'':dot(k)}<b>${esc(STORES[k])}</b></td><td><input data-pw2="${k}|wave" inputmode="tel" value="${esc(py.wave)}" style="width:130px"></td><td><input data-pw2="${k}|om" inputmode="tel" value="${esc(py.om)}" style="width:130px"></td><td style="white-space:nowrap">${py.qr?`<img src="${py.qr}" alt="" style="width:44px;height:44px;object-fit:contain;vertical-align:middle;background:#fff"> <button class="btn sm sec" data-qp="${k}">Affiche</button> <button class="btn sm sec" data-qd="${k}">Retirer</button>`:`<label class="btn sm sec" style="display:inline-flex;margin:0;cursor:pointer">Ajouter l’image<input type="file" accept="image/*" data-qf="${k}" style="display:none"></label>`}</td></tr>`}).join('')}</tbody></table></div><p class="mu" style="font-size:12.5px;margin:8px 0 0">Le QR Wave est l’image fournie par l’application Wave Marchand (capture ou fichier). À la caisse, elle s’affiche quand le client paie par Wave. Sur la facture du Central, le numéro Wave et le QR figurent pour les paiements des magasins et des grossistes.</p></div>
-  <div class="card"><h2>Seuil d’alerte par article <small class="mu" style="font-weight:400">laisser vide pour le calcul automatique</small></h2><div class="tw" style="max-height:420px;overflow-y:auto"><table><thead><tr><th>Article</th><th class="n">Prix</th><th>Seuil personnalisé</th></tr></thead><tbody>${D.arts.map(a=>`<tr><td>${esc(a.name)}<div class="mu" style="font-size:12px">${esc(a.id)}</div></td><td class="n">${fmt(a.price)}</td><td style="width:150px"><input type="number" min="0" data-th="${esc(a.id)}" placeholder="Auto" value="${a.threshold==null?'':a.threshold}"></td></tr>`).join('')||'<tr><td colspan="3" class="mu">Aucun article.</td></tr>'}</tbody></table></div></div>`;
+  <div class="card"><h2>Seuil d’alerte par article <small class="mu" style="font-weight:400">laisser vide pour le calcul automatique</small></h2><div class="tw" style="max-height:420px;overflow-y:auto"><table><thead><tr><th>Article</th><th class="n">Prix</th><th>Prix d’achat (F)</th><th class="n">Marge</th><th>Seuil personnalisé</th></tr></thead><tbody>${D.arts.map(a=>`<tr><td>${esc(a.name)}<div class="mu" style="font-size:12px">${esc(a.id)}</div></td><td class="n">${fmt(a.price)}</td><td style="width:130px"><input type="number" min="0" data-cp="${esc(a.id)}" placeholder="—" value="${D.costs[a.id]==null?'':D.costs[a.id]}"></td><td class="n mu">${D.costs[a.id]&&a.price?Math.round((a.price-D.costs[a.id])/a.price*100)+' %':'—'}</td><td style="width:150px"><input type="number" min="0" data-th="${esc(a.id)}" placeholder="Auto" value="${a.threshold==null?'':a.threshold}"></td></tr>`).join('')||'<tr><td colspan="5" class="mu">Aucun article.</td></tr>'}</tbody></table></div><p class="mu" style="font-size:12.5px;margin:8px 0 0">Le prix d’achat sert à calculer la marge dans Statistiques. Il n’est jamais visible dans les magasins.</p></div>`;
 }
 function bindParam(){
   const refresh=async()=>{await loadStores();await loadDirector();draw()};
@@ -1052,8 +1207,12 @@ function bindParam(){
   document.querySelectorAll('[data-va]').forEach(b=>b.onclick=async()=>{const [id,a]=b.dataset.va.split('|');try{await q(sb.from('vendors').update({active:a==='1'}).eq('id',id).select('id'));await refresh()}catch(e){toast('Erreur : '+e.message)}});
   const sv=async(k,v)=>q(sb.from('settings').upsert({key:k,value:v,updated_at:new Date().toISOString()},{onConflict:'key'}).select('key'));
   $('#ssv').onclick=async()=>{const g=+$('#sg').value,pr=+$('#sp').value,c=+$('#sc').value;if(!(g>=0)||!(pr>=0)||!(c>=0)){toast('Saisissez des nombres positifs.');return}try{await Promise.all([sv('seuil',Math.round(g)),sv('cher_min',Math.round(pr)),sv('seuil_cher',Math.round(c))]);await loadSettings();toast('Seuils enregistrés');await refresh()}catch(e){toast('Erreur : '+e.message)}};
+  $('#rms').onclick=async()=>{const v=+$('#rmx').value;if(!(v>=0&&v<=100)){toast('Pourcentage entre 0 et 100.');return}try{await sv('remise_max_pct',Math.round(v*10)/10);await loadSettings();toast('Plafond enregistré');draw()}catch(e){toast('Erreur : '+e.message)}};
+  $('#rcs').onclick=async()=>{const c=$('#rcd').value.trim();if(!/^\d{6,}$/.test(c)){toast('Code : 6 chiffres ou plus.');return}try{await sv('remise_code',await codeHash(c));await loadSettings();toast('Code enregistré. Retenez-le : il ne peut pas être relu.');draw()}catch(e){toast('Erreur : '+e.message)}};
+  const rr=$('#rcr');if(rr)rr.onclick=async()=>{if(!confirm('Supprimer le code ? Plus aucune remise au-delà du plafond ne sera possible.'))return;try{await sv('remise_code','');await loadSettings();toast('Code supprimé');draw()}catch(e){toast('Erreur : '+e.message)}};
   document.querySelectorAll('[data-pw2]').forEach(i=>i.onchange=async()=>{const [id,f]=i.dataset.pw2.split('|');try{await q(sb.from('stores').update({[f]:i.value.trim()||null}).eq('id',id).select('id'));toast('Enregistré');await loadStores()}catch(e){toast('Erreur : '+e.message)}});
   document.querySelectorAll('[data-qp]').forEach(b=>b.onclick=()=>{const id=b.dataset.qp,py=payOf(id);openDoc(`<div style="text-align:center;margin-top:20mm"><img src="${location.origin}/logo.png" style="max-height:30mm"><h1 style="font-size:40px;margin:14mm 0 4mm">Payez par Wave</h1><p style="font-size:20px;margin:0 0 8mm">Scannez le code avec l’application Wave</p><img src="${py.qr}" style="width:130mm;height:130mm;object-fit:contain"><p style="font-size:28px;margin:8mm 0 2mm"><b>${esc(py.wave)}</b></p><p style="font-size:18px">${esc(STORES[id])}</p></div>`,'Affiche Wave '+id)});
+  document.querySelectorAll('[data-cp]').forEach(i=>i.onchange=async()=>{const v=i.value.trim()===''?null:Math.round(+i.value);if(v!=null&&!(v>=0)){toast('Prix invalide');return}try{if(v==null)await q(sb.from('article_costs').delete().eq('article_id',i.dataset.cp).select('article_id'));else await q(sb.from('article_costs').upsert({article_id:i.dataset.cp,cost_price:v,updated_at:new Date().toISOString()},{onConflict:'article_id'}).select('article_id'));toast('Prix d’achat enregistré');await loadDirector();draw()}catch(e){toast('Erreur : '+e.message)}});
   document.querySelectorAll('[data-qd]').forEach(b=>b.onclick=async()=>{try{await q(sb.from('stores').update({wave_qr:null}).eq('id',b.dataset.qd).select('id'));await refresh()}catch(e){toast('Erreur : '+e.message)}});
   document.querySelectorAll('[data-qf]').forEach(inp=>inp.onchange=()=>{const f=inp.files[0];if(!f)return;const img=new Image(),u=URL.createObjectURL(f);img.onload=async()=>{const r=Math.min(1,420/Math.max(img.width,img.height)),c=document.createElement('canvas');c.width=Math.round(img.width*r);c.height=Math.round(img.height*r);const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(u);try{await q(sb.from('stores').update({wave_qr:c.toDataURL('image/jpeg',.85)}).eq('id',inp.dataset.qf).select('id'));toast('QR Wave enregistré');await refresh()}catch(e){toast('Erreur : '+e.message)}};img.onerror=()=>toast('Image illisible');img.src=u});
   document.querySelectorAll('[data-th]').forEach(i=>i.onchange=async()=>{const v=i.value===''||isNaN(+i.value)?null:Math.max(0,Math.round(+i.value));try{await q(sb.from('articles').update({threshold:v}).eq('id',i.dataset.th).select('id'));const a=D.arts.find(x=>x.id===i.dataset.th);if(a)a.threshold=v;toast('Seuil enregistré');await loadDirector()}catch(e){toast('Erreur : '+e.message)}});
@@ -1121,11 +1280,11 @@ function bindCredits(){
 }
 
 /* ---------- STATISTIQUES ---------- */
-let STAT={arts:[],cash:[],rets:[],for:null};
+let STAT={arts:[],cash:[],rets:[],sel:[],gaps:[],mar:[],disc:[],for:null};
 async function loadStats(){
   STAT.for=D.per;
   const from=dayStr(+D.per-1)+'T00:00:00Z';
-  try{[STAT.arts,STAT.cash,STAT.rets]=await Promise.all([q(sb.rpc('stats_top_articles',{p_from:from,p_limit:8})),q(sb.rpc('stats_cashiers',{p_from:from})),q(sb.from('returns').select('id,amount,qty,kind,created_at').gte('created_at',from))])}catch(e){toast('Chargement impossible : '+(e.message||e))}
+  try{[STAT.arts,STAT.cash,STAT.rets,STAT.sel,STAT.gaps,STAT.mar,STAT.disc]=await Promise.all([q(sb.rpc('stats_top_articles',{p_from:from,p_limit:8})),q(sb.rpc('stats_cashiers',{p_from:from})),q(sb.from('returns').select('id,amount,qty,kind,created_at').gte('created_at',from)),q(sb.rpc('stats_sellers',{p_from:from})),q(sb.rpc('stats_cash_gaps',{p_from:dayStr(+D.per-1)})),q(sb.rpc('stats_margin',{p_from:from})),q(sb.from('sales').select('store_id,discount,discount_code').gt('discount',0).gte('sold_at',from))])}catch(e){toast('Chargement impossible : '+(e.message||e))}
 }
 function bars(rows,fmtv){const mx=Math.max(1,...rows.map(r=>r.v));return rows.length?rows.map(r=>`<div style="display:flex;align-items:center;gap:10px;margin:7px 0"><div style="flex:0 0 38%;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.col?`<i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${r.col};margin-right:7px"></i>`:''}${esc(r.n)}</div><div style="flex:1;background:#eef2ef;border-radius:6px;height:16px"><div style="width:${Math.max(2,r.v/mx*100)}%;height:100%;border-radius:6px;background:${r.col||'var(--g2)'}"></div></div><div style="flex:0 0 auto;min-width:70px;text-align:right;font-weight:700;font-size:13px">${fmtv(r.v)}</div></div>`).join(''):'<p class="mu" style="font-size:13px">Aucune donnée sur la période.</p>'}
 function dirStats(){
@@ -1136,7 +1295,21 @@ function dirStats(){
   const cs=STAT.cash.map(c=>`<tr><td><b>${esc(c.full_name)}</b></td><td>${dot(c.store_id)}${esc(SHORT[c.store_id]||c.store_id)}</td><td class="n">${c.tickets}</td><td class="n">${fmt(+c.total)}</td><td class="n">${c.tickets?fmt(Math.round(+c.total/c.tickets)):'—'}</td></tr>`).join('')||'<tr><td colspan="5" class="mu">Aucune vente sur la période.</td></tr>';
   return `${perBar()}<div class="grid2"><div class="card"><h2>Recettes par magasin <small class="mu" style="font-weight:400">${PL}</small></h2>${bars(byS,fmt)}</div><div class="card"><h2>Articles les plus vendus <small class="mu" style="font-weight:400">en pièces</small></h2>${bars(arts,v=>String(v))}</div></div>
   <div class="grid2"><div class="card"><h2>Encaissements par mode <small class="mu" style="font-weight:400">${PL}</small></h2>${bars(modes,fmt)}</div><div class="card"><h2>Retours <small class="mu" style="font-weight:400">${PL}</small></h2><div class="kpi" style="grid-template-columns:1fr 1fr"><div><b>${rt.length}</b><small>retour(s)</small></div><div><b>${fmt(sumBy(rt,r=>r.amount))}</b><small>rendus aux clients</small></div></div></div></div>
-  <div class="card"><h2>Performance des caissiers <small class="mu" style="font-weight:400">${PL}</small></h2><div class="tw"><table><thead><tr><th>Caissier</th><th>Magasin</th><th class="n">Tickets</th><th class="n">Ventes</th><th class="n">Panier moyen</th></tr></thead><tbody>${cs}</tbody></table></div></div>`;
+  <div class="card"><h2>Performance des caissiers <small class="mu" style="font-weight:400">${PL}</small></h2><div class="tw"><table><thead><tr><th>Caissier</th><th>Magasin</th><th class="n">Tickets</th><th class="n">Ventes</th><th class="n">Panier moyen</th></tr></thead><tbody>${cs}</tbody></table></div></div>${statsExtra(PL)}`;
+}
+function statsExtra(PL){
+  const sn=k=>SHORT[k]||k,pc=(a,b)=>b?Math.round(a/b*100)+' %':'—';
+  const mar=STAT.mar,cov=sumBy(mar,r=>+r.covered_lines),tl=sumBy(mar,r=>+r.total_lines),R=sumBy(mar,r=>+r.revenue),C=sumBy(mar,r=>+r.cost),Dd=sumBy(mar,r=>+r.discounts);
+  const mrows=mar.map(r=>{const m=+r.revenue-+r.cost;return `<tr><td>${dot(r.store_id)}<b>${esc(sn(r.store_id))}</b></td><td class="n">${fmt(+r.revenue)}</td><td class="n">${fmt(+r.cost)}</td><td class="n"><b>${fmt(m)}</b></td><td class="n">${pc(m,+r.revenue)}</td><td class="n">${fmt(+r.discounts)}</td></tr>`}).join('')||'<tr><td colspan="6" class="mu">Aucune vente sur la période.</td></tr>';
+  const margeCard=`<div class="card"><h2>${ic('trending-up')}Marge <small class="mu" style="font-weight:400">${PL} · articles dont le prix d’achat est connu</small></h2><div class="tw"><table><thead><tr><th>Magasin</th><th class="n">Ventes</th><th class="n">Coût d’achat</th><th class="n">Marge brute</th><th class="n">Taux</th><th class="n">Remises accordées</th></tr></thead><tbody>${mrows}${mar.length?`<tr><td><b>Total</b></td><td class="n"><b>${fmt(R)}</b></td><td class="n"><b>${fmt(C)}</b></td><td class="n"><b>${fmt(R-C)}</b></td><td class="n"><b>${pc(R-C,R)}</b></td><td class="n"><b>${fmt(Dd)}</b></td></tr>`:''}</tbody></table></div><p class="mu" style="font-size:12.5px;margin:8px 0 0">${tl?`Le prix d’achat est connu pour ${pc(cov,tl)} des lignes vendues. `:''}Saisissez les prix d’achat dans Paramètres ou dans le fichier d’inventaire (colonne « prix d’achat »). La marge brute est calculée au prix affiché ; les remises sont indiquées à part.</p></div>`;
+  const vrows=STAT.sel.map((x,i)=>`<tr><td><b>${i+1}</b></td><td><b>${esc(x.full_name)}</b></td><td>${dot(x.store_id)}${esc(sn(x.store_id))}</td><td class="n">${x.tickets}</td><td class="n"><b>${fmt(+x.total)}</b></td><td class="n">${x.tickets?fmt(Math.round(+x.total/x.tickets)):'—'}</td><td class="n mu">${+x.discounts?fmt(+x.discounts):'—'}</td></tr>`).join('')||'<tr><td colspan="7" class="mu">Aucune vente avec vendeur sur la période.</td></tr>';
+  const vendCard=`<div class="card"><h2>${ic('trophy')}Classement des vendeurs <small class="mu" style="font-weight:400">${PL}</small></h2><div class="tw"><table><thead><tr><th>#</th><th>Vendeur</th><th>Magasin</th><th class="n">Tickets</th><th class="n">Ventes</th><th class="n">Panier moyen</th><th class="n">Remises</th></tr></thead><tbody>${vrows}</tbody></table></div></div>`;
+  const dm=new Map();STAT.disc.forEach(x=>{const o=dm.get(x.store_id)||{n:0,t:0,c:0};o.n++;o.t+=x.discount;if(x.discount_code)o.c++;dm.set(x.store_id,o)});
+  const drows=[...dm.entries()].map(([k,o])=>`<tr><td>${dot(k)}<b>${esc(sn(k))}</b></td><td class="n">${o.n}</td><td class="n"><b>${fmt(o.t)}</b></td><td class="n">${o.c?'<span class="badge b-wait">'+o.c+'</span>':'—'}</td></tr>`).join('')||'<tr><td colspan="4" class="mu">Aucune remise sur la période.</td></tr>';
+  const discCard=`<div class="card"><h2>${ic('banknote')}Remises accordées <small class="mu" style="font-weight:400">${PL}</small></h2><div class="tw"><table><thead><tr><th>Magasin</th><th class="n">Ventes avec remise</th><th class="n">Total des remises</th><th class="n">Avec code du Directeur</th></tr></thead><tbody>${drows}</tbody></table></div><p class="mu" style="font-size:12.5px;margin:8px 0 0">Plafond actuel : ${+SET.remise_max_pct>=0?SET.remise_max_pct:10} % du ticket. Au-delà, le code du Directeur est demandé.</p></div>`;
+  const grows=STAT.gaps.map(g=>`<tr><td><b>${esc(g.full_name)}</b></td><td>${dot(g.store_id)}${esc(sn(g.store_id))}</td><td class="n">${g.closures}</td><td class="n">${+g.gap_days?'<span class="badge b-wait">'+g.gap_days+'</span>':'0'}</td><td class="n" style="color:${+g.net_gap<0?'var(--rd)':+g.net_gap>0?'var(--g)':'inherit'}"><b>${+g.net_gap===0?'0 F':signed(+g.net_gap)}</b></td><td class="n" style="color:${+g.shortage?'var(--rd)':'inherit'}">${+g.shortage?fmt(+g.shortage):'—'}</td></tr>`).join('')||'<tr><td colspan="6" class="mu">Aucune clôture sur la période.</td></tr>';
+  const gapCard=`<div class="card"><h2>${ic('lock')}Écarts de caisse par caissier <small class="mu" style="font-weight:400">${PL}</small></h2><div class="tw"><table><thead><tr><th>Caissier</th><th>Magasin</th><th class="n">Clôtures</th><th class="n">Jours avec écart</th><th class="n">Écart net</th><th class="n">Manques cumulés</th></tr></thead><tbody>${grows}</tbody></table></div><p class="mu" style="font-size:12.5px;margin:8px 0 0">Écart = espèces comptées moins espèces attendues. Le détail jour par jour et les décisions sont dans le Tableau de bord.</p></div>`;
+  return vendCard+gapCard+margeCard+discCard;
 }
 function bindStats(){
   document.querySelectorAll('#per button').forEach(b=>b.onclick=()=>{D.per=b.dataset.p;draw()});
@@ -1144,10 +1317,11 @@ function bindStats(){
 }
 function dirStock(){
   const st=me.role==='central'?'CEN':D.store;
-  return `${me.role==='central'?'':`<div class="card"><label style="margin-top:0">Magasin</label><select id="dst">${Object.keys(STORES).map(k=>`<option value="${k}" ${k===st?'selected':''}>${STORES[k]}</option>`).join('')}</select></div>`}
+  return `${cycDir()}${me.role==='central'?'':`<div class="card"><label style="margin-top:0">Magasin</label><select id="dst">${Object.keys(STORES).map(k=>`<option value="${k}" ${k===st?'selected':''}>${STORES[k]}</option>`).join('')}</select></div>`}
   ${D.stock[st]?viewStock(D.stock[st],D.arts,esc(STORES[st])):'<div class="card mu">Chargement du stock…</div>'}`;
 }
 function bindDirStock(){
+  document.querySelectorAll('[data-cca]').forEach(b=>b.onclick=async()=>{const [ap,id]=b.dataset.cca.split('|'),c=D.cycles.find(x=>x.id===id);if(ap==='1'&&!confirm('Aligner le stock sur le comptage du caissier ?'))return;b.disabled=true;try{await q(sb.rpc('decide_cycle_count',{p_id:id,p_apply:ap==='1',p_note:null}));D.stock={};await loadDirector();await loadDirStock(me.role==='central'?'CEN':D.store);draw()}catch(e){toast('Erreur : '+(e.message||e));b.disabled=false}});
   const st=me.role==='central'?'CEN':D.store;
   const sel=$('#dst');if(sel)sel.onchange=async()=>{D.store=sel.value;D.stock[D.store]=null;draw();await loadDirStock(D.store);draw()};
   bindStock(()=>{drawDirector();bindShell()});
@@ -1156,7 +1330,7 @@ function bindDirStock(){
 
 /* ---------- IMPORT INVENTAIRE ---------- */
 const norm=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
-const ALIAS={ref:['reference','ref','code','codearticle','id','sku'],name:['designation','nom','article','libelle','produit','description'],cat:['categorie','famille','type','rayon'],price:['prix','prixvente','pv','prixdevente','price','prixdetail'],wprice:['prixgros','prixdegros','prixgrossiste','pg','wholesale'],size:['pointure','taille','size'],color:['couleur','color','coloris'],qty:['quantite','qte','qty','stock']};
+const ALIAS={ref:['reference','ref','code','codearticle','id','sku'],name:['designation','nom','article','libelle','produit','description'],cat:['categorie','famille','type','rayon'],price:['prix','prixvente','pv','prixdevente','price','prixdetail'],wprice:['prixgros','prixdegros','prixgrossiste','pg','wholesale'],cost:['prixachat','prixdachat','coutunitaire','cout','coutachat','pa'],size:['pointure','taille','size'],color:['couleur','color','coloris'],qty:['quantite','qte','qty','stock']};
 function parseInv(rows){
   if(!rows.length)throw new Error('Fichier vide');
   const heads=Object.keys(rows[0]),map={};
@@ -1169,10 +1343,10 @@ function parseInv(rows){
     const id=(ref||'A-'+norm(name).toUpperCase().slice(0,24)).toUpperCase();
     const size=String(r[map.size]??'').trim(),color=String(r[map.color]??'').trim();
     const qty=Math.round(+String(r[map.qty]).replace(/\s/g,'').replace(',','.'));if(!Number.isFinite(qty)||qty<0)continue;
-    const price=Math.round(+String(r[map.price]??'').replace(/\s/g,'').replace(',','.'))||0;const wp=map.wprice?(Math.round(+String(r[map.wprice]??'').replace(/\s/g,'').replace(',','.'))||0):0;
+    const price=Math.round(+String(r[map.price]??'').replace(/\s/g,'').replace(',','.'))||0;const cp=map.cost?(Math.round(+String(r[map.cost]??'').replace(/\s/g,'').replace(',','.'))||0):0;const wp=map.wprice?(Math.round(+String(r[map.wprice]??'').replace(/\s/g,'').replace(',','.'))||0):0;
     let cat=norm(r[map.cat]);cat=cat.includes('sac')?'sacs':cat.includes('chauss')||cat.includes('soulier')||cat.includes('sandale')?'chaussures':size?'chaussures':cat?'autre':'sacs';
     const a=arts.get(id)||{id,name:name||id,category:cat,price,has_sizes:false,has_colors:false};
-    if(name)a.name=name;if(price)a.price=price;if(wp)a.wholesale_price=wp;if(size)a.has_sizes=true;if(color)a.has_colors=true;arts.set(id,a);
+    if(name)a.name=name;if(price)a.price=price;if(wp)a.wholesale_price=wp;if(cp)a.cost=cp;if(size)a.has_sizes=true;if(color)a.has_colors=true;arts.set(id,a);
     lines.push({article_id:id,size,color,counted_qty:qty});
   }
   return {arts:[...arts.values()],lines,map};
@@ -1199,13 +1373,14 @@ async function expData(key){
   const an=id=>(am.get(id)||{name:id}).name;
   if(key==='articles'){
     const stock=await qAll(()=>sb.from('stock').select('*').order('store_id').order('article_id'));
-    return stock.map(r=>{const x=am.get(r.article_id)||{};return {'Magasin':st(r.store_id),'Référence':r.article_id,'Désignation':x.name||'','Catégorie':x.category||'','Pointure':r.size,'Couleur':r.color,'Quantité':r.qty,'Prix détail':x.price||0,'Prix de gros':x.wholesale_price||'','Valeur au prix détail':r.qty*(x.price||0)}});
+    const CM=new Map((await qAll(()=>sb.from('article_costs').select('*').order('article_id'))).map(c=>[c.article_id,c.cost_price]));
+    return stock.map(r=>{const x=am.get(r.article_id)||{};return {'Magasin':st(r.store_id),'Référence':r.article_id,'Désignation':x.name||'','Catégorie':x.category||'','Pointure':r.size,'Couleur':r.color,'Quantité':r.qty,'Prix détail':x.price||0,'Prix de gros':x.wholesale_price||'','Prix d\'achat':(CM.get(r.article_id)||''),'Valeur au prix détail':r.qty*(x.price||0)}});
   }
   if(key==='ventes'){
     const sales=await qAll(()=>sb.from('sales').select('*,sale_items(*),sale_payments(*)').gte('sold_at',a).lte('sold_at',b).order('sold_at'));
     const vn=new Map((D.vendors||[]).map(v=>[v.id,v.full_name])),out=[];
     for(const s of sales){const pay=(s.sale_payments||[]).map(p=>(MET[p.method]||p.method)+' '+p.amount).join(' + ');
-      for(const i of (s.sale_items||[]))out.push({'Date':dtFr(s.sold_at),'Ticket':s.ticket_no,'Magasin':st(s.store_id),'Vendeur':vn.get(s.seller_id)||'','Client':s.customer_name||'','Référence':i.article_id,'Désignation':an(i.article_id),'Pointure':i.size,'Couleur':i.color,'Quantité':i.qty,'Prix unitaire':i.unit_price,'Montant ligne':i.qty*i.unit_price,'Total ticket':s.total,'Paiements du ticket':pay})}
+      for(const i of (s.sale_items||[]))out.push({'Date':dtFr(s.sold_at),'Ticket':s.ticket_no,'Magasin':st(s.store_id),'Vendeur':vn.get(s.seller_id)||'','Client':s.customer_name||'','Référence':i.article_id,'Désignation':an(i.article_id),'Pointure':i.size,'Couleur':i.color,'Quantité':i.qty,'Prix unitaire':i.unit_price,'Montant ligne':i.qty*i.unit_price,'Remise du ticket':s.discount||0,'Total ticket':s.total,'Paiements du ticket':pay})}
     return out;
   }
   if(key==='depenses'){
@@ -1260,7 +1435,7 @@ function bindExport(){
 function dirImport(){
   const I=D.imp;
   return expCard()+`<div class="card"><h2>${ic('clipboard-list')}Charger un inventaire (Excel ou CSV)</h2>
-  <div class="mu" style="margin-bottom:8px">Colonnes reconnues : référence, désignation, catégorie, prix, prix de gros, pointure, couleur, quantité. Les quantités du fichier remplacent le stock du magasin choisi, pour les lignes présentes dans le fichier.</div>
+  <div class="mu" style="margin-bottom:8px">Colonnes reconnues : référence, désignation, catégorie, prix, prix de gros, prix d'achat, pointure, couleur, quantité. Les quantités du fichier remplacent le stock du magasin choisi, pour les lignes présentes dans le fichier.</div>
   <label>Magasin concerné</label><select id="ist">${Object.keys(STORES).map(k=>`<option value="${k}" ${k===(D.istore||'SAN')?'selected':''}>${STORES[k]}</option>`).join('')}</select>
   <label>Fichier</label><input id="ifile" type="file" accept=".xlsx,.xls,.csv">
   <div id="imsg" class="err">${esc(D.imsg||'')}</div>
@@ -1281,7 +1456,9 @@ function bindImport(){
     if(!confirm('Appliquer '+I.lines.length+' lignes au stock de '+STORES[st]+' ?'))return;
     ap.disabled=true;ap.textContent='Envoi en cours…';
     try{
-      for(let i=0;i<I.arts.length;i+=200)await q(sb.from('articles').upsert(I.arts.slice(i,i+200).map(a=>({...a,...(I.map.wprice?{wholesale_price:a.wholesale_price||null}:{}),updated_at:new Date().toISOString()})),{onConflict:'id'}).select('id'));
+      for(let i=0;i<I.arts.length;i+=200)await q(sb.from('articles').upsert(I.arts.slice(i,i+200).map(({cost,...a})=>({...a,...(I.map.wprice?{wholesale_price:a.wholesale_price||null}:{}),updated_at:new Date().toISOString()})),{onConflict:'id'}).select('id'));
+      const costs=I.arts.filter(a=>a.cost>0).map(a=>({article_id:a.id,cost_price:a.cost,updated_at:new Date().toISOString()}));
+      for(let i=0;i<costs.length;i+=200)await q(sb.from('article_costs').upsert(costs.slice(i,i+200),{onConflict:'article_id'}).select('article_id'));
       const cur=await qAll(()=>sb.from('stock').select('article_id,size,color,qty').eq('store_id',st).order('article_id'));
       const cm=new Map(cur.map(r=>[r.article_id+'|'+r.size+'|'+r.color,r.qty]));
       const inv=await q(sb.from('inventories').insert({store_id:st,note:'Import '+(D.impName||'')}).select('id').single());
