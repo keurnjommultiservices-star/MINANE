@@ -71,19 +71,20 @@ header.top .pill .ic{margin-right:4px;width:14px;height:14px;vertical-align:-2px
 .tw{overflow-x:auto}.lg{display:flex;gap:14px;font-size:12px;color:var(--mu);margin-bottom:4px}.lg .sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px}
 @keyframes bl{50%{opacity:.45}}.blink{animation:bl 1.3s infinite}
 .mu{color:var(--mu)}.r{text-align:right}
-#rcpt{display:none}
-@media print{body>*:not(#rcpt){display:none!important}#rcpt{display:block;font:12px/1.35 monospace;width:72mm;margin:0;color:#000}}
+#rcpt,#lbl{display:none}
+@media print{body>*:not(#rcpt):not(#lbl){display:none!important}#rcpt{display:block;font:12px/1.35 monospace;width:72mm;margin:0;color:#000}body.pl #rcpt{display:none!important}body.pl #lbl{display:block;color:#000;background:#fff}}
+.lbs{display:grid}.lbs.a4{grid-template-columns:repeat(3,1fr)}.lb{box-sizing:border-box;border:.2mm dashed #bbb;padding:1.5mm;font:9px/1.15 Arial,sans-serif;text-align:center;overflow:hidden;break-inside:avoid;background:#fff;color:#000}.lbs.a4 .lb{height:36mm}.lbs.roll .lb{width:50mm;height:30mm;border:none;page-break-after:always}.lb b{display:block;font-size:10px;max-height:2.3em;overflow:hidden}.lb i{font-style:normal;font-weight:700;font-size:12px}.lb svg{width:100%;height:11mm;display:block;margin:1mm 0 0}.lb small{font-size:8px}
 </style>
 </head>
 <body>
 <div id="app"></div>
-<div id="rcpt"></div>
+<div id="rcpt"></div><div id="lbl"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" crossorigin="anonymous"></script>
 <script src="qr.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 'use strict';
-const BUILD='2.7';
+const BUILD='2.8';
 const SB_URL='https://ehnptnwvwshmcaqrupru.supabase.co';
 const SB_KEY='sb_publishable_h3I7whuNEfbnfub_Q0eP6w_e77YMUqn';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
@@ -196,8 +197,9 @@ async function loadStores(){
   rows.forEach(r=>{STORE_PAY[r.id]={wave:r.wave||'',om:r.om||'',qr:r.wave_qr||''};STORE_WA[r.id]=r.whatsapp||'';STORES[r.id]=r.name;if(r.kind==='store'){if(r.active)SHOPS.push(r.id);if(!SHORT[r.id])SHORT[r.id]=r.name.replace(/\w\S*/g,w=>w[0]+w.slice(1).toLowerCase());if(!SCOL[r.id])SCOL[r.id]=EXTRA_COL[x++%EXTRA_COL.length]}});
   SHORT.CEN='Central';
 }
-let SET={seuil:20,seuil_cher:10,cher_min:30000,wave_central:'',om_central:'',remise_max_pct:10,remise_code:''};
-async function loadSettings(){try{const r=await q(sb.from('settings').select('key,value'));r.forEach(x=>{SET[x.key]=x.value});LS.set('settings',SET)}catch(e){Object.assign(SET,LS.get('settings',{}))}}
+let SET={seuil:20,seuil_cher:10,cher_min:30000,wave_central:'',om_central:'',remise_max_pct:10};
+let HASCODE=false;
+async function loadSettings(){try{const r=await q(sb.from('settings').select('key,value'));r.forEach(x=>{SET[x.key]=x.value});LS.set('settings',SET);try{HASCODE=!!(await q(sb.rpc('discount_code_set')))}catch(e){}}catch(e){Object.assign(SET,LS.get('settings',{}))}}
 async function start(){
   $('#app').innerHTML='<div class="login"><div class="mu">Chargement…</div></div>';
   const {data:{session}}=await sb.auth.getSession();
@@ -298,7 +300,7 @@ function viewCaisse(){
   const es=effStock(),qq=S.search.toLowerCase();
   const list=ARTS.filter(a=>es.some(r=>r.article_id===a.id)&&(!qq||(a.name+' '+a.id).toLowerCase().includes(qq)));
   const total=S.cart.reduce((s,l)=>s+l.qty*l.price,0);
-  return `<div class="grid2"><div><div class="card"><div class="row" style="flex-wrap:nowrap;gap:8px"><input id="srch" placeholder="Rechercher un article…" value="${esc(S.search)}"><button class="btn sm" id="wqr" style="flex:none;white-space:nowrap">${ic('smartphone',16)}QR Wave</button></div>
+  return `<div class="grid2"><div><div class="card"><div class="row" style="flex-wrap:nowrap;gap:8px"><input id="srch" placeholder="Rechercher un article…" value="${esc(S.search)}"><button class="btn sm" id="wqr" style="flex:none;white-space:nowrap">${ic('smartphone',16)}QR Wave</button><button class="btn sm sec" id="scn" style="flex:none;white-space:nowrap">Scanner</button></div>
   <div class="cards" style="margin-top:10px">${list.length?list.map(a=>`<button class="art" data-art="${esc(a.id)}"><b>${esc(a.name)}</b><span>${esc(a.category)} · stock ${artStock(a.id,es)}</span><span class="p">${fmt(a.price)}</span></button>`).join(''):'<div class="mu">Aucun article en stock dans ce magasin. Le Directeur doit charger l’inventaire.</div>'}</div></div></div>
   <div><div class="card"><h2>${ic('shopping-cart')}Ticket en cours</h2>
   ${S.cart.length?S.cart.map((l,i)=>`<div class="cart-line"><div><b>${esc(l.name)}</b><small>${[l.size&&'Pointure '+l.size,l.color].filter(Boolean).join(' · ')||'&nbsp;'} · ${fmt(l.price)}</small></div><div class="qty"><button data-m="${i}">−</button><b>${l.qty}</b><button data-p="${i}">+</button></div><div class="r"><b>${fmt(l.qty*l.price)}</b></div></div>`).join(''):'<div class="mu">Touchez un article pour l’ajouter.</div>'}
@@ -313,8 +315,8 @@ function waveShow(){
   $('#wx',m).onclick=()=>m.remove();
 }
 function bindCaisse(){
-  $('#wqr').onclick=waveShow;
-  const s=$('#srch');s.oninput=()=>{S.search=s.value;const pos=s.selectionStart;drawCashier();bindShell();const n=$('#srch');n.focus();n.setSelectionRange(pos,pos)};
+  $('#wqr').onclick=waveShow;$('#scn').onclick=camScan;
+  const s=$('#srch');s.onkeydown=e=>{if(e.key==='Enter'){const v=s.value.trim();if(!v)return;if(v.includes('/')){S.search='';handleScan(v);return}const L=ARTS.filter(a=>effStock().some(r=>r.article_id===a.id)&&(a.name+' '+a.id).toLowerCase().includes(v.toLowerCase()));if(L.length===1){S.search='';pickArt(L[0].id)}else if(!L.length&&handleScan(v)){S.search=''}}};s.oninput=()=>{S.search=s.value;const pos=s.selectionStart;drawCashier();bindShell();const n=$('#srch');n.focus();n.setSelectionRange(pos,pos)};
   document.querySelectorAll('[data-art]').forEach(b=>b.onclick=()=>pickArt(b.dataset.art));
   document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{const l=S.cart[+b.dataset.m];l.qty--;if(l.qty<=0)S.cart.splice(+b.dataset.m,1);draw()});
   document.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{S.cart[+b.dataset.p].qty++;draw()});
@@ -338,9 +340,8 @@ function addLine(a,r){
   draw();
 }
 const sha=async t=>{const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')};
-const codeHash=c=>sha('minane|'+String(c||'').trim());
 function payModal(){
-  const total0=S.cart.reduce((s,l)=>s+l.qty*l.price,0),maxPct=+SET.remise_max_pct>=0?+SET.remise_max_pct:10,hasCode=!!SET.remise_code;
+  const total0=S.cart.reduce((s,l)=>s+l.qty*l.price,0),maxPct=+SET.remise_max_pct>=0?+SET.remise_max_pct:10;
   const m=modal(`<h2 style="margin-top:0">Encaissement · <span id="ptot">${fmt(total0)}</span></h2>
   <div class="row" style="gap:8px;align-items:flex-end"><div style="flex:1"><label style="margin-top:0">Remise (F)</label><input id="pd" type="number" inputmode="numeric" min="0" value="0"></div><div class="mu" id="pdi" style="flex:1;font-size:13px;padding-bottom:10px"></div></div>
   <div id="pdk" style="display:none"><label>Code du Directeur (remise au-delà de ${maxPct} %)</label><input id="pk" type="password" inputmode="numeric" autocomplete="off"></div>
@@ -373,20 +374,20 @@ function payModal(){
     if(rest<0){$('#perr',m).textContent='Le montant reçu dépasse le total.';return}
     if((val('#pw')>0||val('#po')>0)&&!($('#wok',m)&&$('#wok',m).checked)){$('#perr',m).textContent='Confirmez que le paiement Wave / Orange Money est bien reçu.';return}
     if(rest>0&&!$('#cn',m).value.trim()){$('#perr',m).textContent='Indiquez le nom du client pour le crédit.';return}
-    let code=false;
+    let tok=null;
     if(over()){
-      if(!hasCode){$('#perr',m).textContent='Remise au-delà de '+maxPct+' % : le Directeur doit d’abord définir un code (Paramètres).';return}
+      if(!navigator.onLine){$('#perr',m).textContent='Remise au-delà de '+maxPct+' % : une connexion internet est nécessaire pour vérifier le code du Directeur.';return}
       if(!$('#pk',m).value.trim()){$('#perr',m).textContent='Remise au-delà de '+maxPct+' % : saisissez le code du Directeur.';return}
-      if(await codeHash($('#pk',m).value)!==SET.remise_code){$('#perr',m).textContent='Code du Directeur incorrect.';return}
-      code=true;
+      try{tok=await q(sb.rpc('verify_discount_code',{p_code:$('#pk',m).value.trim()}))}catch(e){$('#perr',m).textContent=/trop_essais/.test(e.message||'')?'Trop d’essais incorrects. Réessayez dans 10 minutes.':'Vérification impossible : '+(e.message||'erreur');return}
+      if(!tok){$('#perr',m).textContent='Code du Directeur incorrect (ou aucun code défini par le Directeur).';return}
     }
-    const info={cash:val('#pc'),wave:val('#pw'),om:val('#po'),rest,name:$('#cn',m).value.trim(),phone:$('#cp',m).value.trim(),due:$('#cd',m).value||null,disc:disc(),code};
+    const info={cash:val('#pc'),wave:val('#pw'),om:val('#po'),rest,name:$('#cn',m).value.trim(),phone:$('#cp',m).value.trim(),due:$('#cd',m).value||null,disc:disc(),code:!!tok,tok};
     const t=net();m.remove();finishSale(t,info);
   };
 }
 function finishSale(total,i){
   const id=uid(),now=new Date().toISOString(),ticket=nextTicket();
-  const sale={id,store_id:me.store_id,ticket_no:ticket,seller_id:S.vend,customer_name:i.name||null,customer_phone:i.phone||null,total,sold_at:now,discount:i.disc||0,discount_code:!!i.code};
+  const sale={id,store_id:me.store_id,ticket_no:ticket,seller_id:S.vend,customer_name:i.name||null,customer_phone:i.phone||null,total,sold_at:now,discount:i.disc||0,discount_code:!!i.code,...(i.tok?{discount_token:i.tok}:{})};
   const items=S.cart.map(l=>({id:uid(),sale_id:id,article_id:l.article_id,size:l.size,color:l.color,qty:l.qty,unit_price:l.price}));
   const pays=[['cash',i.cash],['wave',i.wave],['om',i.om],['credit',i.rest]].filter(x=>x[1]>0).map(x=>({id:uid(),sale_id:id,method:x[0],amount:x[1]}));
   const credit=i.rest>0?{id:uid(),sale_id:id,store_id:me.store_id,customer_name:i.name,customer_phone:i.phone||null,amount:i.rest,due_date:i.due}:null;
@@ -396,14 +397,89 @@ function finishSale(total,i){
   S.cart=[];draw();receipt(sale,lines,pays,vname);
   syncQueue();
 }
+function receiptText(sale,lines,pays,vname){
+  const lab={cash:'Espèces',wave:'Wave',om:'Orange Money',credit:'Crédit'},L=['*MINANE SHOP* · '+STORES[sale.store_id],'Ticket '+sale.ticket_no+' · '+dtFr(sale.sold_at),''];
+  lines.forEach(l=>L.push(l.name+(([l.size&&'P'+l.size,l.color].filter(Boolean).join(' '))?' ('+[l.size&&'P'+l.size,l.color].filter(Boolean).join(' ')+')':'')+' : '+l.qty+' x '+fmt(l.price)+' = '+fmt(l.qty*l.price)));
+  L.push('');if(sale.discount>0)L.push('Remise : −'+fmt(sale.discount));
+  L.push('*TOTAL : '+fmt(sale.total)+'*');pays.forEach(p=>L.push(lab[p.method]+' : '+fmt(p.amount)));
+  if(sale.customer_name)L.push('Client : '+sale.customer_name);
+  L.push('','Merci de votre visite !');if(STORE_WA[sale.store_id])L.push('Une question ? WhatsApp : '+STORE_WA[sale.store_id]);
+  return L.join('\n');
+}
 function receipt(sale,lines,pays,vname){
   const lab={cash:'Espèces',wave:'Wave',om:'Orange Money',credit:'Crédit'};
   const html=`<div style="text-align:center"><img src="logo-ticket.png" alt="MINANE" style="width:46mm;height:auto"><br><b style="font-size:15px">MINANE SHOP</b><br>${esc(STORES[sale.store_id])}<br>${dtFr(sale.sold_at)}<br>Ticket ${esc(sale.ticket_no)}</div><hr>
   ${lines.map(l=>`${esc(l.name)}<br>&nbsp;&nbsp;${[l.size&&'P'+l.size,l.color].filter(Boolean).join(' ')} ${l.qty} x ${l.price} = <b>${l.qty*l.price}</b><br>`).join('')}<hr>
   ${sale.discount>0?`Remise : −${sale.discount} F<br>`:''}<b>TOTAL ${sale.total} F</b><br>${pays.map(p=>lab[p.method]+' : '+p.amount+' F').join('<br>')}<br>${vname?'Vendeur : '+esc(vname)+'<br>':''}${sale.customer_name?'Client : '+esc(sale.customer_name)+'<br>':''}<br><div style="text-align:center">Merci de votre visite${waQr(sale.store_id,120)?`<br>Écrivez-nous sur WhatsApp<br>${esc(STORE_WA[sale.store_id])}<br>${waQr(sale.store_id,120)}`:''}</div>`;
   $('#rcpt').innerHTML=html;
-  const m=modal(`<h2 style="margin-top:0">Vente enregistrée</h2><div class="mu" style="margin-bottom:10px">Ticket ${esc(sale.ticket_no)} · ${fmt(sale.total)}${navigator.onLine?'':' · sera envoyé au retour d’internet'}</div><button class="btn big" id="pr">${ic('printer',20)}Imprimer le reçu</button><button class="btn sec big" style="margin-top:8px" id="nw">${ic('plus')}Nouvelle vente</button>`);
+  const m=modal(`<h2 style="margin-top:0">Vente enregistrée</h2><div class="mu" style="margin-bottom:10px">Ticket ${esc(sale.ticket_no)} · ${fmt(sale.total)}${navigator.onLine?'':' · sera envoyé au retour d’internet'}</div><button class="btn big" id="pr">${ic('printer',20)}Imprimer le reçu</button>
+  <label>Ticket par WhatsApp (numéro du client)</label><div class="row" style="flex-wrap:nowrap;gap:8px"><input id="wph" inputmode="tel" placeholder="77 123 45 67" value="${esc(sale.customer_phone||'')}"><button class="btn" id="wsd" style="flex:none;background:#1faa59;white-space:nowrap">Envoyer</button></div><div id="werr" class="err"></div>
+  <button class="btn sec big" style="margin-top:8px" id="nw">${ic('plus')}Nouvelle vente</button>`);
   $('#pr',m).onclick=()=>window.print();$('#nw',m).onclick=()=>m.remove();
+  $('#wsd',m).onclick=()=>{const d=$('#wph',m).value.replace(/\D/g,'');if(d.length<9){$('#werr',m).textContent='Saisissez le numéro du client (9 chiffres).';return}$('#werr',m).textContent='';window.open(waUrl($('#wph',m).value,receiptText(sale,lines,pays,vname)),'_blank')};
+}
+
+/* ---------- CODES-BARRES (Code 128) ---------- */
+const C128='11011001100,11001101100,11001100110,10010011000,10010001100,10001001100,10011001000,10011000100,10001100100,11001001000,11001000100,11000100100,10110011100,10011011100,10011001110,10111001100,10011101100,10011100110,11001110010,11001011100,11001001110,11011100100,11001110100,11101101110,11101001100,11100101100,11100100110,11101100100,11100110100,11100110010,11011011000,11011000110,11000110110,10100011000,10001011000,10001000110,10110001000,10001101000,10001100010,11010001000,11000101000,11000100010,10110111000,10110001110,10001101110,10111011000,10111000110,10001110110,11101110110,11010001110,11000101110,11011101000,11011100010,11011101110,11101011000,11101000110,11100010110,11101101000,11101100010,11100011010,11101111010,11001000010,11110001010,10100110000,10100001100,10010110000,10010000110,10000101100,10000100110,10110010000,10110000100,10011010000,10011000010,10000110100,10000110010,11000010010,11001010000,11110111010,11000010100,10001111010,10100111100,10010111100,10010011110,10111100100,10011110100,10011110010,11110100100,11110010100,11110010010,11011011110,11011110110,11110110110,10101111000,10100011110,10001011110,10111101000,10111100010,11110101000,11110100010,10111011110,10111101110,11101011110,11110101110,11010000100,11010010000,11010011100'.split(',');
+function c128(t){const v=[104];for(const ch of t){const c=ch.charCodeAt(0);if(c<32||c>126)throw new Error('caractère non codable');v.push(c-32)}let sum=v[0];for(let i=1;i<v.length;i++)sum+=v[i]*i;v.push(sum%103);return v.map(x=>C128[x]).join('')+'1100011101011'}
+function bcSvg(t){const b=c128(t),Q=10;let d='',i=0;while(i<b.length){if(b[i]==='1'){let j=i;while(j<b.length&&b[j]==='1')j++;d+=`M${Q+i} 0h${j-i}v1h-${j-i}z`;i=j}else i++}return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${b.length+2*Q} 1" preserveAspectRatio="none" shape-rendering="crispEdges"><rect width="${b.length+2*Q}" height="1" fill="#fff"/><path d="${d}" fill="#000"/></svg>`}
+const bcClean=t=>String(t==null?'':t).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x20-\x7e]/g,'');
+const bcAscii=t=>bcClean(t).replace(/\//g,'-');
+const bcCode=(id,size,color)=>(size||color)?[bcAscii(id),bcAscii(size)||'-',bcAscii(color)||'-'].join('/'):bcAscii(id);
+function handleScan(raw){
+  const t=bcClean(raw).trim();if(!t)return false;
+  const [i,sz,co]=t.split('/'),N=x=>bcAscii(x).toUpperCase().trim();
+  const a=ARTS.find(x=>N(x.id)===N(i));
+  if(!a){toast('Code inconnu : '+t);return false}
+  const rows=effStock().filter(r=>r.article_id===a.id);
+  if(!rows.length){toast('Article non stocké ici : '+a.name);return false}
+  if(sz!==undefined){
+    const ws=sz==='-'?'':N(sz),wc=(co===undefined||co==='-')?'':N(co),r=rows.find(r=>N(r.size)===ws&&N(r.color)===wc);
+    if(r){if(r.qty<=0&&!confirm('Le stock affiché est '+r.qty+'. Vendre quand même ?'))return true;addLine(a,r);toast('Ajouté : '+a.name);return true}
+  }
+  pickArt(a.id);return true;
+}
+let SCANBUF='',SCANT=0;
+document.addEventListener('keydown',e=>{
+  if(e.ctrlKey||e.metaKey||e.altKey)return;
+  const now=performance.now();
+  if(e.key==='Enter'){
+    const b=SCANBUF,fast=now-SCANT<120;SCANBUF='';
+    if(b.length>=3&&fast&&me&&me.role==='cashier'&&S.tab==='caisse'&&!document.querySelector('.modal')){e.preventDefault();e.stopPropagation();S.search='';handleScan(b)}
+    return;
+  }
+  if(e.key.length===1){if(now-SCANT>80)SCANBUF='';SCANBUF+=e.key;SCANT=now}
+},true);
+async function camScan(){
+  if(!('BarcodeDetector' in window)||!navigator.mediaDevices){toast('Scan par caméra non disponible sur cet appareil : utilisez une douchette ou la recherche.');return}
+  let stream,stop=false;
+  const m=modal(`<h2 style="margin-top:0">Scanner un article</h2><video id="cv" playsinline muted style="width:100%;border-radius:10px;background:#000;max-height:50vh"></video><p class="mu" style="font-size:13px">Présentez le code-barres de l’étiquette devant la caméra.</p><button class="btn sec big" id="cvx">Fermer</button>`);
+  const end=()=>{stop=true;if(stream)stream.getTracks().forEach(t=>t.stop());m.remove()};
+  $('#cvx',m).onclick=end;m.addEventListener('click',e=>{if(e.target===m)end()});
+  try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});const v=$('#cv',m);v.srcObject=stream;await v.play();
+    const det=new BarcodeDetector({formats:['code_128']});
+    const loop=async()=>{if(stop)return;try{const r=await det.detect(v);if(r.length){end();handleScan(r[0].rawValue);return}}catch(e){}setTimeout(loop,250)};loop();
+  }catch(e){end();toast('Caméra inaccessible : autorisez-la dans le navigateur.')}
+}
+function labelsHtml(st,mode,max){
+  const rows=(D.stock[st]||[]).filter(r=>mode==='1'||r.qty>0),total=rows.reduce((s,r)=>s+(mode==='1'?1:r.qty),0);let n=0,out='';
+  for(const r of rows){const a=D.arts.find(x=>x.id===r.article_id);if(!a)continue;const k=mode==='1'?1:r.qty,code=bcCode(a.id,r.size,r.color);
+    for(let i=0;i<k;i++){if(max&&n>=max)return {html:out,n:total};n++;
+      out+=`<div class="lb"><b>${esc(a.name)}</b><span>${esc([r.size&&'P'+r.size,r.color].filter(Boolean).join(' · '))}</span> <i>${fmt(a.price)}</i>${bcSvg(code)}<small>${esc(code)}</small></div>`}}
+  return {html:out,n:max?total:n};
+}
+function labelsCard(){
+  return `<div class="card"><h2>${ic('printer')}Étiquettes codes-barres <small class="mu" style="font-weight:400">une étiquette par article, pointure et couleur</small></h2><div class="row" style="align-items:flex-end"><div style="flex:1;min-width:140px"><label>Magasin</label><select id="lbs">${['CEN',...SHOPS].map(k=>`<option value="${k}" ${(S.lbs||'CEN')===k?'selected':''}>${esc(STORES[k])}</option>`).join('')}</select></div><div style="flex:1;min-width:140px"><label>Nombre d’étiquettes</label><select id="lbm"><option value="stock" ${S.lbm!=='1'?'selected':''}>Selon le stock actuel</option><option value="1" ${S.lbm==='1'?'selected':''}>Une par article et variante</option></select></div><div style="flex:1;min-width:140px"><label>Format</label><select id="lbf"><option value="a4" ${S.lbf!=='roll'?'selected':''}>Feuille A4 (3 colonnes)</option><option value="roll" ${S.lbf==='roll'?'selected':''}>Rouleau 50 × 30 mm</option></select></div></div>
+  <div class="row" style="margin-top:10px"><button class="btn sm sec" id="lbv">Aperçu</button><button class="btn sm" id="lbp">${ic('printer',16)}Imprimer les étiquettes</button></div>
+  <p class="mu" style="font-size:12.5px;margin:8px 0 0">Le code-barres contient la référence de l’article, la pointure et la couleur : à la caisse, il suffit de le scanner (douchette USB ou Bluetooth, ou bouton Scanner du téléphone) pour ajouter la bonne ligne au ticket. Sur une imprimante d’étiquettes, choisissez le format Rouleau.</p></div>`;
+}
+function bindLabels(){
+  const get=async()=>{const st=$('#lbs').value;S.lbs=st;S.lbm=$('#lbm').value;S.lbf=$('#lbf').value;if(!D.stock[st])await loadDirStock(st);return st};
+  $('#lbv').onclick=async()=>{const st=await get(),r=labelsHtml(st,S.lbm,12);if(!r.n){toast('Aucun article à étiqueter dans ce magasin.');return}const m=modal(`<h2 style="margin-top:0">Aperçu · ${r.n} étiquette(s) au total</h2><div class="lbs a4" style="max-height:60vh;overflow:auto">${r.html}</div><button class="btn sec big" style="margin-top:10px" id="lbx">Fermer</button>`);$('#lbx',m).onclick=()=>m.remove()};
+  $('#lbp').onclick=async()=>{const st=await get(),r=labelsHtml(st,S.lbm,0);if(!r.n){toast('Aucun article à étiqueter dans ce magasin.');return}if(r.n>600&&!confirm(r.n+' étiquettes vont être imprimées. Continuer ?'))return;
+    const css=document.createElement('style');css.textContent=S.lbf==='roll'?'@page{size:50mm 30mm;margin:0}':'@page{size:A4;margin:8mm}';document.head.appendChild(css);
+    $('#lbl').innerHTML=`<div class="lbs ${S.lbf==='roll'?'roll':'a4'}">${r.html}</div>`;document.body.classList.add('pl');
+    const done=()=>{document.body.classList.remove('pl');css.remove();$('#lbl').innerHTML='';window.removeEventListener('afterprint',done)};window.addEventListener('afterprint',done);window.print()};
 }
 
 /* ---------- JOURNAL ---------- */
@@ -1176,8 +1252,9 @@ function dirParam(){
   <button class="btn" id="vg" style="margin-top:10px">${ic('plus')}Ajouter le vendeur</button><div class="err" id="verr"></div></div>
   <div class="card"><h2>${ic('triangle-alert')}Alertes de stock <small class="mu" style="font-weight:400">réglées par la Direction</small></h2><div class="row"><div style="flex:1;min-width:130px"><label>Seuil général (pièces)</label><input id="sg" type="number" min="0" value="${SET.seuil}"></div><div style="flex:1;min-width:130px"><label>Article cher à partir de (F)</label><input id="sp" type="number" min="0" value="${SET.cher_min}"></div><div style="flex:1;min-width:130px"><label>Seuil article cher (pièces)</label><input id="sc" type="number" min="0" value="${SET.seuil_cher}"></div></div><button class="btn" id="ssv" style="margin-top:10px">${ic('check')}Enregistrer les seuils</button><p class="mu" style="font-size:12.5px;margin:8px 0 0">Une alerte apparaît quand le stock d’un article dans un magasin est inférieur ou égal à son seuil. Un seuil propre à un article (tableau plus bas) remplace ces valeurs.</p></div>
   <div class="card"><h2>${ic('banknote')}Remises <small class="mu" style="font-weight:400">plafond et code du Directeur</small></h2><div class="row" style="align-items:flex-end"><div style="flex:1;min-width:150px"><label>Remise maximale sans code (% du ticket)</label><input id="rmx" type="number" min="0" max="100" value="${+SET.remise_max_pct>=0?SET.remise_max_pct:10}"></div><button class="btn sm" id="rms">Enregistrer</button></div>
-  <div class="row" style="margin-top:12px;align-items:flex-end"><div style="flex:1;min-width:150px"><label>Code du Directeur (6 chiffres ou plus)</label><input id="rcd" type="password" inputmode="numeric" autocomplete="new-password" placeholder="${SET.remise_code?'Code défini : saisir un nouveau code pour le changer':'Aucun code défini'}"></div><button class="btn sm" id="rcs">Définir le code</button>${SET.remise_code?'<button class="btn sm sec" id="rcr">Supprimer le code</button>':''}</div>
-  <p class="mu" style="font-size:12.5px;margin:8px 0 0">Au-delà du plafond, le caissier doit saisir ce code, que seul le Directeur connaît. Toutes les remises sont visibles dans Statistiques, avec celles qui ont demandé le code. Sans code défini, aucune remise au-delà du plafond n’est possible. Le code est vérifié sur le téléphone du caissier, même sans internet : il protège contre l’usage courant, pas contre une personne qui voudrait le percer par des moyens techniques.</p></div>
+  <div class="row" style="margin-top:12px;align-items:flex-end"><div style="flex:1;min-width:150px"><label>Code du Directeur (6 chiffres ou plus)</label><input id="rcd" type="password" inputmode="numeric" autocomplete="new-password" placeholder="${HASCODE?'Code défini : saisir un nouveau code pour le changer':'Aucun code défini'}"></div><button class="btn sm" id="rcs">Définir le code</button>${HASCODE?'<button class="btn sm sec" id="rcr">Supprimer le code</button>':''}</div>
+  <p class="mu" style="font-size:12.5px;margin:8px 0 0">Au-delà du plafond, le caissier doit saisir ce code, que seul le Directeur connaît. Toutes les remises sont visibles dans Statistiques, avec celles qui ont demandé le code. Sans code défini, aucune remise au-delà du plafond n’est possible. Le code est vérifié par le serveur : il faut donc internet pour accorder une remise au-delà du plafond, et le plafond est aussi contrôlé à l’enregistrement de la vente (une vente hors plafond sans autorisation est refusée). Après 5 codes faux, le caissier est bloqué 10 minutes.</p></div>
+  ${labelsCard()}
   <div class="card"><h2>${ic('smartphone')}Paiements Wave et Orange Money <small class="mu" style="font-weight:400">numéro et QR de chaque point de vente</small></h2><div class="tw"><table><thead><tr><th>Point de vente</th><th>N° Wave</th><th>N° Orange Money</th><th>QR Wave</th></tr></thead><tbody>${['CEN',...SHOPS].map(k=>{const py=payOf(k);return `<tr><td>${k==='CEN'?'':dot(k)}<b>${esc(STORES[k])}</b></td><td><input data-pw2="${k}|wave" inputmode="tel" value="${esc(py.wave)}" style="width:130px"></td><td><input data-pw2="${k}|om" inputmode="tel" value="${esc(py.om)}" style="width:130px"></td><td style="white-space:nowrap">${py.qr?`<img src="${py.qr}" alt="" style="width:44px;height:44px;object-fit:contain;vertical-align:middle;background:#fff"> <button class="btn sm sec" data-qp="${k}">Affiche</button> <button class="btn sm sec" data-qd="${k}">Retirer</button>`:`<label class="btn sm sec" style="display:inline-flex;margin:0;cursor:pointer">Ajouter l’image<input type="file" accept="image/*" data-qf="${k}" style="display:none"></label>`}</td></tr>`}).join('')}</tbody></table></div><p class="mu" style="font-size:12.5px;margin:8px 0 0">Le QR Wave est l’image fournie par l’application Wave Marchand (capture ou fichier). À la caisse, elle s’affiche quand le client paie par Wave. Sur la facture du Central, le numéro Wave et le QR figurent pour les paiements des magasins et des grossistes.</p></div>
   <div class="card"><h2>Seuil d’alerte par article <small class="mu" style="font-weight:400">laisser vide pour le calcul automatique</small></h2><div class="tw" style="max-height:420px;overflow-y:auto"><table><thead><tr><th>Article</th><th class="n">Prix</th><th>Prix d’achat (F)</th><th class="n">Marge</th><th>Seuil personnalisé</th></tr></thead><tbody>${D.arts.map(a=>`<tr><td>${esc(a.name)}<div class="mu" style="font-size:12px">${esc(a.id)}</div></td><td class="n">${fmt(a.price)}</td><td style="width:130px"><input type="number" min="0" data-cp="${esc(a.id)}" placeholder="—" value="${D.costs[a.id]==null?'':D.costs[a.id]}"></td><td class="n mu">${D.costs[a.id]&&a.price?Math.round((a.price-D.costs[a.id])/a.price*100)+' %':'—'}</td><td style="width:150px"><input type="number" min="0" data-th="${esc(a.id)}" placeholder="Auto" value="${a.threshold==null?'':a.threshold}"></td></tr>`).join('')||'<tr><td colspan="5" class="mu">Aucun article.</td></tr>'}</tbody></table></div><p class="mu" style="font-size:12.5px;margin:8px 0 0">Le prix d’achat sert à calculer la marge dans Statistiques. Il n’est jamais visible dans les magasins.</p></div>`;
 }
@@ -1207,9 +1284,10 @@ function bindParam(){
   document.querySelectorAll('[data-va]').forEach(b=>b.onclick=async()=>{const [id,a]=b.dataset.va.split('|');try{await q(sb.from('vendors').update({active:a==='1'}).eq('id',id).select('id'));await refresh()}catch(e){toast('Erreur : '+e.message)}});
   const sv=async(k,v)=>q(sb.from('settings').upsert({key:k,value:v,updated_at:new Date().toISOString()},{onConflict:'key'}).select('key'));
   $('#ssv').onclick=async()=>{const g=+$('#sg').value,pr=+$('#sp').value,c=+$('#sc').value;if(!(g>=0)||!(pr>=0)||!(c>=0)){toast('Saisissez des nombres positifs.');return}try{await Promise.all([sv('seuil',Math.round(g)),sv('cher_min',Math.round(pr)),sv('seuil_cher',Math.round(c))]);await loadSettings();toast('Seuils enregistrés');await refresh()}catch(e){toast('Erreur : '+e.message)}};
+  bindLabels();
   $('#rms').onclick=async()=>{const v=+$('#rmx').value;if(!(v>=0&&v<=100)){toast('Pourcentage entre 0 et 100.');return}try{await sv('remise_max_pct',Math.round(v*10)/10);await loadSettings();toast('Plafond enregistré');draw()}catch(e){toast('Erreur : '+e.message)}};
-  $('#rcs').onclick=async()=>{const c=$('#rcd').value.trim();if(!/^\d{6,}$/.test(c)){toast('Code : 6 chiffres ou plus.');return}try{await sv('remise_code',await codeHash(c));await loadSettings();toast('Code enregistré. Retenez-le : il ne peut pas être relu.');draw()}catch(e){toast('Erreur : '+e.message)}};
-  const rr=$('#rcr');if(rr)rr.onclick=async()=>{if(!confirm('Supprimer le code ? Plus aucune remise au-delà du plafond ne sera possible.'))return;try{await sv('remise_code','');await loadSettings();toast('Code supprimé');draw()}catch(e){toast('Erreur : '+e.message)}};
+  $('#rcs').onclick=async()=>{const c=$('#rcd').value.trim();if(!/^\d{6,}$/.test(c)){toast('Code : 6 chiffres ou plus.');return}try{await q(sb.rpc('set_discount_code',{p_code:c}));await loadSettings();toast('Code enregistré. Retenez-le : il ne peut pas être relu.');draw()}catch(e){toast('Erreur : '+e.message)}};
+  const rr=$('#rcr');if(rr)rr.onclick=async()=>{if(!confirm('Supprimer le code ? Plus aucune remise au-delà du plafond ne sera possible.'))return;try{await q(sb.rpc('set_discount_code',{p_code:''}));await loadSettings();toast('Code supprimé');draw()}catch(e){toast('Erreur : '+e.message)}};
   document.querySelectorAll('[data-pw2]').forEach(i=>i.onchange=async()=>{const [id,f]=i.dataset.pw2.split('|');try{await q(sb.from('stores').update({[f]:i.value.trim()||null}).eq('id',id).select('id'));toast('Enregistré');await loadStores()}catch(e){toast('Erreur : '+e.message)}});
   document.querySelectorAll('[data-qp]').forEach(b=>b.onclick=()=>{const id=b.dataset.qp,py=payOf(id);openDoc(`<div style="text-align:center;margin-top:20mm"><img src="${location.origin}/logo.png" style="max-height:30mm"><h1 style="font-size:40px;margin:14mm 0 4mm">Payez par Wave</h1><p style="font-size:20px;margin:0 0 8mm">Scannez le code avec l’application Wave</p><img src="${py.qr}" style="width:130mm;height:130mm;object-fit:contain"><p style="font-size:28px;margin:8mm 0 2mm"><b>${esc(py.wave)}</b></p><p style="font-size:18px">${esc(STORES[id])}</p></div>`,'Affiche Wave '+id)});
   document.querySelectorAll('[data-cp]').forEach(i=>i.onchange=async()=>{const v=i.value.trim()===''?null:Math.round(+i.value);if(v!=null&&!(v>=0)){toast('Prix invalide');return}try{if(v==null)await q(sb.from('article_costs').delete().eq('article_id',i.dataset.cp).select('article_id'));else await q(sb.from('article_costs').upsert({article_id:i.dataset.cp,cost_price:v,updated_at:new Date().toISOString()},{onConflict:'article_id'}).select('article_id'));toast('Prix d’achat enregistré');await loadDirector();draw()}catch(e){toast('Erreur : '+e.message)}});
