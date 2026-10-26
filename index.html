@@ -84,7 +84,7 @@ header.top .pill .ic{margin-right:4px;width:14px;height:14px;vertical-align:-2px
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 'use strict';
-const BUILD='2.9';
+const BUILD='2.9.1';
 const SB_URL='https://ehnptnwvwshmcaqrupru.supabase.co';
 const SB_KEY='sb_publishable_h3I7whuNEfbnfub_Q0eP6w_e77YMUqn';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
@@ -169,12 +169,12 @@ function effStock(){
 /* ---------- authentification ---------- */
 function loginScreen(msg){
   $('#app').innerHTML=`<div class="login"><div class="logo"><img src="logo.png" alt="Minane"></div><div class="mu" style="margin:12px 0 18px;text-align:center">Gestion des magasins</div>
-  <label>Identifiant</label><input id="lu" type="email" autocomplete="username" autocapitalize="none" placeholder="exemple@minane-gestion.app">
+  <label>Identifiant</label><input id="lu" type="text" inputmode="email" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="ex. san.caisse">
   <label>Mot de passe</label><input id="lp" type="password" autocomplete="current-password">
   <button class="btn big" style="margin-top:14px" id="lgo">Se connecter</button><div class="err" id="lerr">${esc(msg||'')}</div>
   <div class="mu" style="margin-top:22px;font-size:12px">Version ${BUILD}</div></div>`;
   const go=async()=>{
-    const email=$('#lu').value.trim(),password=$('#lp').value;
+    let email=$('#lu').value.trim().toLowerCase().replace(/\s+/g,'');const password=$('#lp').value;if(email&&!email.includes('@'))email+='@minane-gestion.app';
     if(!navigator.onLine){$('#lerr').textContent='La première connexion demande internet.';return}
     $('#lgo').disabled=true;
     const {error}=await sb.auth.signInWithPassword({email,password});
@@ -1260,7 +1260,7 @@ function dirParam(){
   <div class="card"><h2>${ic('users')}Caissiers et comptes</h2><div class="tw"><table><thead><tr><th>Nom</th><th>Rôle</th><th>Magasin</th><th>État</th><th></th></tr></thead><tbody>${accounts.map(a=>`<tr><td><b>${esc(a.full_name)}</b></td><td>${a.role==='central'?'Magasin Central':'Caissier'}</td><td>${esc(STORES[a.store_id]||'')}</td><td><span class="badge ${a.active?'b-ok':'b-gr'}">${a.active?'actif':'désactivé'}</span></td><td class="n" style="white-space:nowrap">${a.role==='cashier'&&a.active?`<select data-ts="${a.id}" style="width:auto;padding:5px"><option value="">Affecter à…</option>${SHOPS.filter(k=>k!==a.store_id).map(k=>`<option value="${k}">${esc(SHORT[k])}</option>`).join('')}</select> `:''}<button class="btn sm sec" data-pw="${a.id}">Nouveau mot de passe</button> <button class="btn sm sec" data-ac="${a.id}|${a.active?0:1}">${a.active?'Désactiver':'Réactiver'}</button></td></tr>`).join('')||'<tr><td colspan="5" class="mu">Aucun compte.</td></tr>'}</tbody></table></div>
   <div class="row" style="margin-top:12px"><div style="flex:2;min-width:160px"><label>Nom complet</label><input id="uname" placeholder="Ex. Awa Ndiaye"></div><div style="flex:2;min-width:160px"><label>Identifiant</label><input id="uid" autocapitalize="none" placeholder="Ex. hlm.caisse"></div><div style="flex:2;min-width:160px"><label>Mot de passe (8 caractères au moins)</label><input id="upw" type="text" autocomplete="off"></div><div style="flex:2;min-width:160px"><label>Magasin</label><select id="ust">${shopOpts}<option value="CEN">Magasin Central (compte Central)</option></select></div></div>
   <button class="btn" id="ugo" style="margin-top:10px">${ic('plus')}Créer le compte</button><div class="err" id="uerr"></div>
-  <p class="mu" style="font-size:12.5px;margin:8px 0 0">Un seul caissier actif par magasin. Pour changer de caissier : désactivez l’ancien, puis créez le nouveau. L’identifiant de connexion sera <b>identifiant@minane-gestion.app</b>. Communiquez le mot de passe de vive voix.</p></div>
+  <p class="mu" style="font-size:12.5px;margin:8px 0 0">Un seul caissier actif par magasin. Pour changer de caissier : désactivez l’ancien, puis créez le nouveau. Le caissier tape seulement l’identifiant (ex. <b>san.caisse</b>) : le suffixe @minane-gestion.app est ajouté automatiquement. Communiquez le mot de passe de vive voix.</p></div>
   <div class="card"><h2>${ic('users')}Vendeurs <small class="mu" style="font-weight:400">choisis à la caisse lors de chaque vente</small></h2><div class="tw"><table><thead><tr><th>Vendeur</th><th>Magasin</th><th></th></tr></thead><tbody>${vend.map(v=>`<tr><td><b>${esc(v.full_name)}</b></td><td>${esc(STORES[v.store_id]||v.store_id)}</td><td class="n"><span class="badge ${v.active?'b-ok':'b-gr'}">${v.active?'actif':'retiré'}</span> <button class="btn sm sec" data-va="${v.id}|${v.active?0:1}">${v.active?'Retirer':'Réactiver'}</button></td></tr>`).join('')||'<tr><td colspan="3" class="mu">Aucun vendeur.</td></tr>'}</tbody></table></div>
   <div class="row" style="margin-top:12px"><div style="flex:2;min-width:160px"><label>Nom du vendeur</label><input id="vn"></div><div style="flex:2;min-width:160px"><label>Magasin</label><select id="vs">${shopOpts}</select></div></div>
   <button class="btn" id="vg" style="margin-top:10px">${ic('plus')}Ajouter le vendeur</button><div class="err" id="verr"></div></div>
