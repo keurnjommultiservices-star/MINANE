@@ -84,7 +84,7 @@ header.top .pill .ic{margin-right:4px;width:14px;height:14px;vertical-align:-2px
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 'use strict';
-const BUILD='2.8';
+const BUILD='2.9';
 const SB_URL='https://ehnptnwvwshmcaqrupru.supabase.co';
 const SB_KEY='sb_publishable_h3I7whuNEfbnfub_Q0eP6w_e77YMUqn';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
@@ -108,7 +108,9 @@ async function q(p){const r=await p;if(r.error)throw r.error;return r.data}
 async function qAll(mk){let out=[],from=0;for(;;){const d=await q(mk().range(from,from+999));out=out.concat(d);if(d.length<1000)break;from+=1000}return out}
 async function cached(key,fn){try{const v=await fn();LS.set(key,v);return v}catch(e){const c=LS.get(key,null);if(c==null)throw e;return c}}
 
-let me=null,S={tab:'caisse',cart:[],search:''};
+let me=null,S={tab:'caisse',cart:[],search:'',gros:false};
+const grosOk=()=>!!me&&Array.isArray(SET.gros_stores)&&SET.gros_stores.includes(me.store_id);
+const unitPrice=a=>(S.gros&&grosOk()&&a.wholesale_price)?a.wholesale_price:a.price;
 let ARTS=[],STK=[],VEND=[],DAYSALES=[],DAYVERS=[],DAYCLOS=null;
 
 /* ---------- file d'attente hors ligne ---------- */
@@ -197,7 +199,7 @@ async function loadStores(){
   rows.forEach(r=>{STORE_PAY[r.id]={wave:r.wave||'',om:r.om||'',qr:r.wave_qr||''};STORE_WA[r.id]=r.whatsapp||'';STORES[r.id]=r.name;if(r.kind==='store'){if(r.active)SHOPS.push(r.id);if(!SHORT[r.id])SHORT[r.id]=r.name.replace(/\w\S*/g,w=>w[0]+w.slice(1).toLowerCase());if(!SCOL[r.id])SCOL[r.id]=EXTRA_COL[x++%EXTRA_COL.length]}});
   SHORT.CEN='Central';
 }
-let SET={seuil:20,seuil_cher:10,cher_min:30000,wave_central:'',om_central:'',remise_max_pct:10};
+let SET={seuil:20,seuil_cher:10,cher_min:30000,wave_central:'',om_central:'',remise_max_pct:10,gros_stores:['SAN'],report_email:''};
 let HASCODE=false;
 async function loadSettings(){try{const r=await q(sb.from('settings').select('key,value'));r.forEach(x=>{SET[x.key]=x.value});LS.set('settings',SET);try{HASCODE=!!(await q(sb.rpc('discount_code_set')))}catch(e){}}catch(e){Object.assign(SET,LS.get('settings',{}))}}
 async function start(){
@@ -222,7 +224,7 @@ async function loadCashier(initSeq){
   ARTS=await cached('arts',()=>qAll(()=>sb.from('articles').select('*').eq('active',true).order('name')));
   STK=await cached('stk_'+st,()=>qAll(()=>sb.from('stock').select('article_id,size,color,qty').eq('store_id',st).order('article_id')));
   VEND=await cached('vend_'+st,()=>q(sb.from('vendors').select('id,full_name').eq('store_id',st).eq('active',true).order('full_name')));
-  DAYSALES=await cached('dsales_'+st+day,()=>q(sb.from('sales').select('id,ticket_no,total,sold_at,seller_id,customer_name,sale_payments(method,amount)').eq('store_id',st).gte('sold_at',day+'T00:00:00Z').order('sold_at',{ascending:false})));
+  DAYSALES=await cached('dsales_'+st+day,()=>q(sb.from('sales').select('id,ticket_no,total,sold_at,seller_id,customer_name,kind,sale_payments(method,amount)').eq('store_id',st).gte('sold_at',day+'T00:00:00Z').order('sold_at',{ascending:false})));
   DAYVERS=await cached('dvers_'+st+day,()=>q(sb.from('versements').select('id,amount,method,reference,status,created_at').eq('store_id',st).eq('day',day).order('created_at',{ascending:false})));
   DAYCLOS=await cached('dclos_'+st+day,async()=>{const r=await q(sb.from('closures').select('*').eq('store_id',st).eq('day',day));return r[0]||null});
   if(initSeq&&DAYSALES.length){
@@ -301,9 +303,10 @@ function viewCaisse(){
   const list=ARTS.filter(a=>es.some(r=>r.article_id===a.id)&&(!qq||(a.name+' '+a.id).toLowerCase().includes(qq)));
   const total=S.cart.reduce((s,l)=>s+l.qty*l.price,0);
   return `<div class="grid2"><div><div class="card"><div class="row" style="flex-wrap:nowrap;gap:8px"><input id="srch" placeholder="Rechercher un article…" value="${esc(S.search)}"><button class="btn sm" id="wqr" style="flex:none;white-space:nowrap">${ic('smartphone',16)}QR Wave</button><button class="btn sm sec" id="scn" style="flex:none;white-space:nowrap">Scanner</button></div>
-  <div class="cards" style="margin-top:10px">${list.length?list.map(a=>`<button class="art" data-art="${esc(a.id)}"><b>${esc(a.name)}</b><span>${esc(a.category)} · stock ${artStock(a.id,es)}</span><span class="p">${fmt(a.price)}</span></button>`).join(''):'<div class="mu">Aucun article en stock dans ce magasin. Le Directeur doit charger l’inventaire.</div>'}</div></div></div>
+  <div class="cards" style="margin-top:10px">${list.length?list.map(a=>`<button class="art" data-art="${esc(a.id)}"><b>${esc(a.name)}</b><span>${esc(a.category)} · stock ${artStock(a.id,es)}</span><span class="p">${fmt(unitPrice(a))}</span></button>`).join(''):'<div class="mu">Aucun article en stock dans ce magasin. Le Directeur doit charger l’inventaire.</div>'}</div></div></div>
   <div><div class="card"><h2>${ic('shopping-cart')}Ticket en cours</h2>
   ${S.cart.length?S.cart.map((l,i)=>`<div class="cart-line"><div><b>${esc(l.name)}</b><small>${[l.size&&'Pointure '+l.size,l.color].filter(Boolean).join(' · ')||'&nbsp;'} · ${fmt(l.price)}</small></div><div class="qty"><button data-m="${i}">−</button><b>${l.qty}</b><button data-p="${i}">+</button></div><div class="r"><b>${fmt(l.qty*l.price)}</b></div></div>`).join(''):'<div class="mu">Touchez un article pour l’ajouter.</div>'}
+  ${grosOk()?`<label style="display:flex;gap:10px;align-items:center;margin-top:12px;font-weight:600"><input type="checkbox" id="gros" ${S.gros?'checked':''} style="width:22px;height:22px;flex:none;margin:0"><span>Vente en gros <small class="mu" style="font-weight:400">prix de gros, nom du client obligatoire, crédit possible</small></span></label>`:''}
   <label>Vendeur ou vendeuse</label><select id="vsel"><option value="">— choisir —</option>${VEND.map(v=>`<option value="${v.id}" ${S.vend===v.id?'selected':''}>${esc(v.full_name)}</option>`).join('')}</select>
   <div class="total"><span>Total</span><span>${fmt(total)}</span></div>
   <button class="btn big" id="pay" ${S.cart.length&&S.vend?'':'disabled'}>${ic('banknote',20)}Encaisser</button>
@@ -321,7 +324,8 @@ function bindCaisse(){
   document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{const l=S.cart[+b.dataset.m];l.qty--;if(l.qty<=0)S.cart.splice(+b.dataset.m,1);draw()});
   document.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{S.cart[+b.dataset.p].qty++;draw()});
   $('#vsel').onchange=e=>{S.vend=e.target.value;draw()};
-  const c=$('#clr');if(c)c.onclick=()=>{S.cart=[];draw()};
+  const gk=$('#gros');if(gk)gk.onchange=()=>{S.gros=gk.checked;let miss=0;S.cart.forEach(l=>{const a=ARTS.find(x=>x.id===l.article_id);if(a){l.price=unitPrice(a);if(S.gros&&!a.wholesale_price)miss++}});if(miss)toast('Prix de gros non défini pour '+miss+' article(s) : prix détail utilisé.');draw()};
+  const c=$('#clr');if(c)c.onclick=()=>{S.cart=[];S.gros=false;draw()};
   $('#pay').onclick=payModal;
 }
 function modal(html){const m=document.createElement('div');m.className='modal';m.innerHTML='<div>'+html+'</div>';m.addEventListener('click',e=>{if(e.target===m)m.remove()});document.body.appendChild(m);return m}
@@ -336,13 +340,13 @@ function pickArt(id){
 }
 function addLine(a,r){
   const k=a.id+'|'+r.size+'|'+r.color,ex=S.cart.find(l=>mkey(l)===k);
-  if(ex)ex.qty++;else S.cart.push({article_id:a.id,name:a.name,price:a.price,size:r.size,color:r.color,qty:1});
+  if(ex)ex.qty++;else S.cart.push({article_id:a.id,name:a.name,price:unitPrice(a),size:r.size,color:r.color,qty:1});
   draw();
 }
 const sha=async t=>{const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')};
 function payModal(){
   const total0=S.cart.reduce((s,l)=>s+l.qty*l.price,0),maxPct=+SET.remise_max_pct>=0?+SET.remise_max_pct:10;
-  const m=modal(`<h2 style="margin-top:0">Encaissement · <span id="ptot">${fmt(total0)}</span></h2>
+  const m=modal(`<h2 style="margin-top:0">${S.gros?'Vente en gros · ':'Encaissement · '}<span id="ptot">${fmt(total0)}</span></h2>
   <div class="row" style="gap:8px;align-items:flex-end"><div style="flex:1"><label style="margin-top:0">Remise (F)</label><input id="pd" type="number" inputmode="numeric" min="0" value="0"></div><div class="mu" id="pdi" style="flex:1;font-size:13px;padding-bottom:10px"></div></div>
   <div id="pdk" style="display:none"><label>Code du Directeur (remise au-delà de ${maxPct} %)</label><input id="pk" type="password" inputmode="numeric" autocomplete="off"></div>
   <div class="row" style="gap:8px;margin-top:10px"><button class="btn sm sec" id="allc">Tout en espèces</button><button class="btn sm" id="allw">Tout en Wave</button></div>
@@ -351,7 +355,7 @@ function payModal(){
   <label>Orange Money</label><input id="po" type="number" inputmode="numeric" min="0" value="0">
   <div id="wpanel"></div>
   <div class="total" style="font-size:16px"><span>Reste à crédit</span><span id="rest">0 F</span></div>
-  <div id="cred" style="display:none"><label>Nom du client (obligatoire pour un crédit)</label><input id="cn"><label>Téléphone</label><input id="cp" inputmode="tel"><label>Date limite</label><input id="cd" type="date"></div>
+  <div id="cred" style="display:none"><label>${S.gros?'Nom du client (obligatoire pour une vente en gros)':'Nom du client (obligatoire pour un crédit)'}</label><input id="cn"><label>Téléphone</label><input id="cp" inputmode="tel"><label>Date limite</label><input id="cd" type="date"></div>
   <div id="perr" class="err"></div>
   <button class="btn big" style="margin-top:12px" id="ok">${ic('check',20)}Valider la vente</button><button class="btn sec big" style="margin-top:8px" id="cx">Annuler</button>`);
   const val=id=>Math.max(0,Math.round(+$(id,m).value||0));
@@ -362,7 +366,7 @@ function payModal(){
     if(o>0)h+=`<div class="card" style="margin:10px 0 0;padding:12px;text-align:center"><b>Orange Money · ${fmt(o)}</b><div class="mu" style="font-size:13px">${pay.om?'Numéro OM du magasin : <b>'+esc(pay.om)+'</b>':'Numéro OM non configuré (Paramètres)'}</div></div>`;
     if(w>0||o>0)h+=`<label style="display:flex;gap:10px;align-items:center;margin-top:10px;font-weight:600"><input type="checkbox" id="wok" style="width:22px;height:22px;flex:none;margin:0"><span>Paiement reçu sur le téléphone du magasin</span></label>`;
     const was=$('#wok',m)&&$('#wok',m).checked;$('#wpanel',m).innerHTML=h;if(was&&$('#wok',m))$('#wok',m).checked=true};
-  const upd=()=>{const rest=net()-val('#pc')-val('#pw')-val('#po');$('#rest',m).textContent=fmt(Math.max(0,rest));$('#cred',m).style.display=rest>0?'block':'none';
+  const upd=()=>{const rest=net()-val('#pc')-val('#pw')-val('#po');$('#rest',m).textContent=fmt(Math.max(0,rest));$('#cred',m).style.display=(rest>0||S.gros)?'block':'none';
     $('#ptot',m).textContent=fmt(net());$('#pdi',m).textContent=disc()?('= '+pctOf().toFixed(1).replace('.',',')+' % du total'):'';$('#pdk',m).style.display=over()?'block':'none';return rest};
   $('#pd',m).oninput=()=>{if(val('#pw')===0&&val('#po')===0)$('#pc',m).value=net();upd();wp()};
   $('#allc',m).onclick=()=>{$('#pc',m).value=net();$('#pw',m).value=0;$('#po',m).value=0;upd();wp()};
@@ -373,7 +377,7 @@ function payModal(){
     const rest=upd();
     if(rest<0){$('#perr',m).textContent='Le montant reçu dépasse le total.';return}
     if((val('#pw')>0||val('#po')>0)&&!($('#wok',m)&&$('#wok',m).checked)){$('#perr',m).textContent='Confirmez que le paiement Wave / Orange Money est bien reçu.';return}
-    if(rest>0&&!$('#cn',m).value.trim()){$('#perr',m).textContent='Indiquez le nom du client pour le crédit.';return}
+    if((rest>0||S.gros)&&!$('#cn',m).value.trim()){$('#perr',m).textContent=S.gros?'Indiquez le nom du client pour une vente en gros.':'Indiquez le nom du client pour le crédit.';return}
     let tok=null;
     if(over()){
       if(!navigator.onLine){$('#perr',m).textContent='Remise au-delà de '+maxPct+' % : une connexion internet est nécessaire pour vérifier le code du Directeur.';return}
@@ -387,18 +391,18 @@ function payModal(){
 }
 function finishSale(total,i){
   const id=uid(),now=new Date().toISOString(),ticket=nextTicket();
-  const sale={id,store_id:me.store_id,ticket_no:ticket,seller_id:S.vend,customer_name:i.name||null,customer_phone:i.phone||null,total,sold_at:now,discount:i.disc||0,discount_code:!!i.code,...(i.tok?{discount_token:i.tok}:{})};
+  const sale={id,store_id:me.store_id,ticket_no:ticket,seller_id:S.vend,customer_name:i.name||null,customer_phone:i.phone||null,total,sold_at:now,discount:i.disc||0,discount_code:!!i.code,kind:(S.gros&&grosOk())?'gros':'detail',...(i.tok?{discount_token:i.tok}:{})};
   const items=S.cart.map(l=>({id:uid(),sale_id:id,article_id:l.article_id,size:l.size,color:l.color,qty:l.qty,unit_price:l.price}));
   const pays=[['cash',i.cash],['wave',i.wave],['om',i.om],['credit',i.rest]].filter(x=>x[1]>0).map(x=>({id:uid(),sale_id:id,method:x[0],amount:x[1]}));
   const credit=i.rest>0?{id:uid(),sale_id:id,store_id:me.store_id,customer_name:i.name,customer_phone:i.phone||null,amount:i.rest,due_date:i.due}:null;
   const lines=S.cart.map(l=>({...l}));
   setQ([...getQ(),{id,kind:'sale',payload:{sale,items,pays,credit},at:now}]);
   const vname=(VEND.find(v=>v.id===S.vend)||{}).full_name||'';
-  S.cart=[];draw();receipt(sale,lines,pays,vname);
+  S.cart=[];S.gros=false;draw();receipt(sale,lines,pays,vname);
   syncQueue();
 }
 function receiptText(sale,lines,pays,vname){
-  const lab={cash:'Espèces',wave:'Wave',om:'Orange Money',credit:'Crédit'},L=['*MINANE SHOP* · '+STORES[sale.store_id],'Ticket '+sale.ticket_no+' · '+dtFr(sale.sold_at),''];
+  const lab={cash:'Espèces',wave:'Wave',om:'Orange Money',credit:'Crédit'},L=['*MINANE SHOP* · '+STORES[sale.store_id],'Ticket '+sale.ticket_no+' · '+dtFr(sale.sold_at)+(sale.kind==='gros'?' · VENTE EN GROS':''),''];
   lines.forEach(l=>L.push(l.name+(([l.size&&'P'+l.size,l.color].filter(Boolean).join(' '))?' ('+[l.size&&'P'+l.size,l.color].filter(Boolean).join(' ')+')':'')+' : '+l.qty+' x '+fmt(l.price)+' = '+fmt(l.qty*l.price)));
   L.push('');if(sale.discount>0)L.push('Remise : −'+fmt(sale.discount));
   L.push('*TOTAL : '+fmt(sale.total)+'*');pays.forEach(p=>L.push(lab[p.method]+' : '+fmt(p.amount)));
@@ -408,7 +412,7 @@ function receiptText(sale,lines,pays,vname){
 }
 function receipt(sale,lines,pays,vname){
   const lab={cash:'Espèces',wave:'Wave',om:'Orange Money',credit:'Crédit'};
-  const html=`<div style="text-align:center"><img src="logo-ticket.png" alt="MINANE" style="width:46mm;height:auto"><br><b style="font-size:15px">MINANE SHOP</b><br>${esc(STORES[sale.store_id])}<br>${dtFr(sale.sold_at)}<br>Ticket ${esc(sale.ticket_no)}</div><hr>
+  const html=`<div style="text-align:center"><img src="logo-ticket.png" alt="MINANE" style="width:46mm;height:auto"><br><b style="font-size:15px">MINANE SHOP</b><br>${esc(STORES[sale.store_id])}<br>${dtFr(sale.sold_at)}<br>Ticket ${esc(sale.ticket_no)}${sale.kind==='gros'?'<br><b>VENTE EN GROS</b>':''}</div><hr>
   ${lines.map(l=>`${esc(l.name)}<br>&nbsp;&nbsp;${[l.size&&'P'+l.size,l.color].filter(Boolean).join(' ')} ${l.qty} x ${l.price} = <b>${l.qty*l.price}</b><br>`).join('')}<hr>
   ${sale.discount>0?`Remise : −${sale.discount} F<br>`:''}<b>TOTAL ${sale.total} F</b><br>${pays.map(p=>lab[p.method]+' : '+p.amount+' F').join('<br>')}<br>${vname?'Vendeur : '+esc(vname)+'<br>':''}${sale.customer_name?'Client : '+esc(sale.customer_name)+'<br>':''}<br><div style="text-align:center">Merci de votre visite${waQr(sale.store_id,120)?`<br>Écrivez-nous sur WhatsApp<br>${esc(STORE_WA[sale.store_id])}<br>${waQr(sale.store_id,120)}`:''}</div>`;
   $('#rcpt').innerHTML=html;
@@ -485,7 +489,7 @@ function bindLabels(){
 /* ---------- JOURNAL ---------- */
 function mergedSales(){
   const ids=new Set(DAYSALES.map(s=>s.id)),out=DAYSALES.map(s=>({...s,sync:true}));
-  for(const it of getQ()){if(it.kind!=='sale'||ids.has(it.id))continue;const p=it.payload;out.push({id:p.sale.id,ticket_no:p.sale.ticket_no,total:p.sale.total,sold_at:p.sale.sold_at,seller_id:p.sale.seller_id,customer_name:p.sale.customer_name,sale_payments:p.pays.map(x=>({method:x.method,amount:x.amount})),sync:false,failed:it.failed,err:it.err})}
+  for(const it of getQ()){if(it.kind!=='sale'||ids.has(it.id))continue;const p=it.payload;out.push({id:p.sale.id,ticket_no:p.sale.ticket_no,total:p.sale.total,sold_at:p.sale.sold_at,seller_id:p.sale.seller_id,customer_name:p.sale.customer_name,kind:p.sale.kind,sale_payments:p.pays.map(x=>({method:x.method,amount:x.amount})),sync:false,failed:it.failed,err:it.err})}
   return out.sort((a,b)=>b.sold_at.localeCompare(a.sold_at));
 }
 const lab={cash:'Espèces',wave:'Wave',om:'OM',credit:'Crédit'};
@@ -494,7 +498,7 @@ function viewJournal(){
   const L=mergedSales(),t=sums(L);
   return `<div class="kpi"><div><small>${ic('trending-up')}Ventes du jour</small><b>${fmt(t.total)}</b></div><div><small>${ic('receipt')}Tickets</small><b>${L.length}</b></div><div><small>${ic('banknote')}Espèces</small><b>${fmt(t.cash)}</b></div><div><small>${ic('smartphone')}Wave</small><b>${fmt(t.wave)}</b></div><div><small>${ic('smartphone')}Orange Money</small><b>${fmt(t.om)}</b></div><div><small>${ic('users')}Crédit</small><b>${fmt(t.credit)}</b></div></div>
   <div class="card"><table><tr><th>Heure</th><th>Ticket</th><th>Vendeur</th><th>Paiement</th><th class="n">Total</th><th></th></tr>
-  ${L.map(s=>`<tr><td>${hhmm(s.sold_at)}</td><td>${esc(s.ticket_no)}</td><td>${esc((VEND.find(v=>v.id===s.seller_id)||{}).full_name||'')}</td><td>${(s.sale_payments||[]).map(p=>lab[p.method]).join(' + ')}</td><td class="n">${fmt(s.total)}</td><td>${s.failed?'<span class="badge b-bad" title="'+esc(s.err)+'">à vérifier</span>':s.sync?'<span class="badge b-ok">envoyé</span>':'<span class="badge b-wait">en attente</span>'}</td></tr>`).join('')||'<tr><td colspan="6" class="mu">Aucune vente aujourd’hui.</td></tr>'}</table></div>`;
+  ${L.map(s=>`<tr><td>${hhmm(s.sold_at)}</td><td>${esc(s.ticket_no)}${s.kind==='gros'?' <span class="badge b-wait">gros</span>':''}</td><td>${esc((VEND.find(v=>v.id===s.seller_id)||{}).full_name||'')}</td><td>${(s.sale_payments||[]).map(p=>lab[p.method]).join(' + ')}</td><td class="n">${fmt(s.total)}</td><td>${s.failed?'<span class="badge b-bad" title="'+esc(s.err)+'">à vérifier</span>':s.sync?'<span class="badge b-ok">envoyé</span>':'<span class="badge b-wait">en attente</span>'}</td></tr>`).join('')||'<tr><td colspan="6" class="mu">Aucune vente aujourd’hui.</td></tr>'}</table></div>`;
 }
 
 /* ---------- STOCK (commun) ---------- */
@@ -632,7 +636,7 @@ async function loadDirector(){
       q(sb.from('article_costs').select('article_id,cost_price')),
       q(sb.from('reception_checks').select('*,reception_items(*)').eq('status','ecart').order('received_at',{ascending:false}).limit(60)),
       q(sb.from('cycle_counts').select('*').gte('day',dayStr(30)).order('created_at',{ascending:false}).limit(200)),
-      q(sb.from('daily_reports').select('day,body').order('day',{ascending:false}).limit(10))]);
+      q(sb.from('daily_reports').select('day,body,sent_at,send_status').order('day',{ascending:false}).limit(10))]);
     Object.assign(D,{costs:Object.fromEntries(costs.map(c=>[c.article_id,c.cost_price])),recv,cycles,reports,summary,sellers,alerts,exp,credits,recent,status,vers,closuresAll:closures,closures:closures.filter(c=>c.day===dayStr(0)),vendors,hist,cbal,profiles});
   }catch(e){toast('Connexion impossible : '+(e.message||e))}
 }
@@ -720,8 +724,8 @@ function rapportText(){
   SHOPS.forEach(s=>{const r=D.summary.find(x=>x.day===today&&x.store_id===s);t.push('• '+SHORT[s]+' : '+fmt(r?+r.cash+ +r.wave+ +r.om:0)+' ('+(r?r.tickets:0)+' tickets)')});
   const R=recDay(today),De=depDay(today);t.push('');t.push('Total ventes : '+fmt(R)+' ('+ticketsDay(today)+' tickets)');t.push('Dépenses : '+fmt(De));t.push('Solde : '+signed(R-De));
   const pv=D.vers.filter(v=>v.status==='pending');t.push('');t.push(pv.length?'Versements à confirmer : '+pv.map(v=>SHORT[v.store_id]+' '+fmt(v.amount)).join(', '):'Versements à confirmer : aucun');
-  const ec=D.closures.filter(c=>c.counted_cash!=null&&c.counted_cash!==c.cash);
-  t.push(ec.length?'Écarts de caisse :':'Écarts de caisse : aucun');ec.forEach(c=>t.push('• '+SHORT[c.store_id]+' : '+signed(c.counted_cash-c.cash)));
+  const ec=D.closures.filter(c=>c.counted_cash!=null&&c.counted_cash!==expCash(c));
+  t.push(ec.length?'Écarts de caisse :':'Écarts de caisse : aucun');ec.forEach(c=>t.push('• '+SHORT[c.store_id]+' : '+signed(c.counted_cash-expCash(c))));
   const nc=SHOPS.filter(s=>!D.closures.some(c=>c.store_id===s));if(nc.length)t.push('Caisse non clôturée : '+nc.map(s=>SHORT[s]).join(', '));
   const rg=recvOpen().length,cp=cycPending().length;if(rg)t.push('Écarts de réception à traiter : '+rg);if(cp)t.push('Comptages à valider : '+cp);
   t.push('');const rp=D.alerts.filter(a=>a.qty<=0).map(a=>a.name+' ('+SHORT[a.store_id]+')');t.push(rp.length?'Ruptures : '+rp.join(', '):'Ruptures : aucune');
@@ -758,8 +762,9 @@ function caBlock(){
   ${O?'':'<p class="mu" style="font-size:12px;margin:8px 0 0">Pas encore d’historique pour l’année précédente. Il sera repris de l’ancien logiciel (import Excel), onglet Excel / CSV.</p>'}</div>`;
 }
 /* --- Clôtures de caisse et écarts --- */
+const expCash=c=>c.expected_cash==null?c.cash:c.expected_cash;
 function gapInfo(c){
-  const d=(c.counted_cash==null?c.cash:c.counted_cash)-c.cash;
+  const d=(c.counted_cash==null?expCash(c):c.counted_cash)-expCash(c);
   if(d===0)return {d,lab:'Conforme',cls:'b-ok',act:''};
   if(d>0)return c.gap_status==='surplus_noted'?{d,lab:'Surplus noté',cls:'b-ok',act:''}:{d,lab:'Surplus',cls:'b-wait',act:'note'};
   if(c.gap_status==='accepted')return {d,lab:'Justification acceptée',cls:'b-ok',act:''};
@@ -775,7 +780,7 @@ function closBlock(){
     const act=g.act==='note'?`<div class="row" style="gap:6px;margin-top:4px"><input id="cn-${c.id}" placeholder="Note du Directeur" style="padding:6px;width:150px"><button class="btn sm sec" data-ca="note|${c.id}">Noter</button></div>`
      :g.act==='review'?`<div class="row" style="gap:6px;margin-top:4px"><button class="btn sm sec" data-ca="accept|${c.id}">Accepter la justification</button><button class="btn sm sec" data-ca="retain|${c.id}">Retenir sur salaire</button></div>`
      :g.act==='lift'?`<div style="margin-top:4px"><button class="btn sm sec" data-ca="lift|${c.id}">Lever la retenue</button></div>`:'';
-    return `<tr><td>${dmy(c.day)}<div class="mu" style="font-size:12px">${hhmm(dt)}</div></td><td><b>${esc(cashierOf(c.store_id))}</b><div class="mu" style="font-size:12px">${esc(SHORT[c.store_id])}</div></td><td class="n">${fmt(c.cash)}</td><td class="n">${c.counted_cash==null?'—':fmt(c.counted_cash)}</td><td class="n" style="color:${g.d>0?'var(--g)':g.d<0?'var(--rd)':'inherit'}"><b>${g.d===0?'0 F':signed(g.d)}</b></td><td class="mu">${c.note?'« '+esc(c.note)+' »':g.d<0?'Aucune justification':''}${c.director_note?'<div style="font-size:12px">Directeur : '+esc(c.director_note)+'</div>':''}</td><td><span class="badge ${g.cls}">${g.lab}</span>${act}</td></tr>`}).join('')||'<tr><td colspan="7" class="mu">Aucune clôture pour le moment.</td></tr>';
+    return `<tr><td>${dmy(c.day)}<div class="mu" style="font-size:12px">${hhmm(dt)}</div></td><td><b>${esc(cashierOf(c.store_id))}</b><div class="mu" style="font-size:12px">${esc(SHORT[c.store_id])}</div></td><td class="n">${fmt(expCash(c))}${(c.refunds_cash||c.credit_cash)?`<div class="mu" style="font-size:11.5px">ventes ${fmt(c.cash)}${c.refunds_cash?' − remb. '+fmt(c.refunds_cash):''}${c.credit_cash?' + crédits '+fmt(c.credit_cash):''}</div>`:''}</td><td class="n">${c.counted_cash==null?'—':fmt(c.counted_cash)}</td><td class="n" style="color:${g.d>0?'var(--g)':g.d<0?'var(--rd)':'inherit'}"><b>${g.d===0?'0 F':signed(g.d)}</b></td><td class="mu">${c.note?'« '+esc(c.note)+' »':g.d<0?'Aucune justification':''}${c.director_note?'<div style="font-size:12px">Directeur : '+esc(c.director_note)+'</div>':''}</td><td><span class="badge ${g.cls}">${g.lab}</span>${act}</td></tr>`}).join('')||'<tr><td colspan="7" class="mu">Aucune clôture pour le moment.</td></tr>';
   return `<div class="card"><h2>${ic('lock')}Clôtures de caisse et écarts <small class="mu" style="font-weight:400">${todo?todo+' à traiter':'rien à traiter'}</small></h2><div class="tw"><table><thead><tr><th>Clôture</th><th>Caissier</th><th class="n">Attendu</th><th class="n">Compté</th><th class="n">Écart</th><th>Justification / note</th><th>État et action</th></tr></thead><tbody>${rows}</tbody></table></div>
   <p class="mu" style="font-size:12.5px;margin:10px 0 0">${Object.keys(ret).length?'Retenues à opérer sur salaire : '+Object.entries(ret).map(([n,v])=>'<b>'+esc(n)+'</b> '+fmt(v)).join(' · '):'Aucune retenue à opérer sur salaire.'}</p>
   <p class="mu" style="font-size:12.5px;margin:6px 0 0">Manque sans justification : retenue salaire. Manque justifié : le Directeur accepte ou retient. Surplus : noté par le Directeur.</p></div>`;
@@ -813,14 +818,23 @@ function dirOverview(){
   <div class="card"><h2>Dernières ventes</h2><div class="tw"><table><thead><tr><th>Heure</th><th>Magasin</th><th>Vendeur</th><th>Client</th><th>Paiement</th><th class="n">Montant</th></tr></thead><tbody>${rec}</tbody></table></div></div>
   <div class="card"><h2>Rapport du soir <small class="mu" style="font-weight:400">enregistré automatiquement chaque soir à 20 h 30</small></h2><div class="row" style="margin-bottom:8px;align-items:flex-end"><div style="flex:2;min-width:200px"><label style="margin-top:0">Rapport affiché</label><select id="rsel"><option value="">Aujourd’hui, en direct</option>${D.reports.map(r=>`<option value="${r.day}">Enregistré : ${dmyFull(r.day)}</option>`).join('')}</select></div><button class="btn sm sec" id="rnow">Enregistrer maintenant</button></div><pre id="rtx" style="white-space:pre-wrap;background:#f4f6f4;border-radius:10px;padding:10px;font:13px/1.45 ui-monospace,monospace">${esc(rapportText())}</pre>
   <div class="row"><div style="flex:1;min-width:160px"><label>WhatsApp du Directeur</label><input id="rt" type="tel" inputmode="tel" placeholder="77 000 00 00" value="${esc(D.rapp.tel)}"></div><div style="flex:1;min-width:160px"><label>E-mail</label><input id="rmm" type="email" placeholder="nom@exemple.com" value="${esc(D.rapp.mail)}"></div></div>
-  <div class="row" style="margin-top:12px"><button class="btn" id="rwa">${ic('smartphone',16)}Envoyer par WhatsApp</button><button class="btn sec" id="rem">E-mail</button><button class="btn sec" id="rcp">Copier</button></div></div>
+  <div class="row" style="margin-top:12px"><button class="btn" id="rwa">${ic('smartphone',16)}Envoyer par WhatsApp</button><button class="btn sec" id="rem">E-mail</button><button class="btn sec" id="rcp">Copier</button></div>
+  <div class="row" style="margin-top:14px;align-items:flex-end"><div style="flex:2;min-width:200px"><label style="margin-top:0">E-mail pour l’envoi automatique chaque soir (20 h 35)</label><input id="rae" type="email" placeholder="aucun envoi automatique" value="${esc(typeof SET.report_email==='string'?SET.report_email:'')}"></div><button class="btn sm" id="raes">Enregistrer</button><button class="btn sm sec" id="raen">Envoyer maintenant</button></div>
+  <p class="mu" style="font-size:12.5px;margin:8px 0 0">${sendStatus()}</p></div>
   ${closBlock()}${dueBlock()}`;
+}
+function sendStatus(){
+  const r=D.reports.find(x=>x.send_status);if(!r)return 'Aucun envoi automatique effectué pour le moment. L’envoi demande que le service d’e-mail soit activé (clé du fournisseur ajoutée dans Supabase).';
+  const t=r.send_status,d=dmyFull(r.day);
+  return 'Dernier essai ('+d+') : '+(t==='sent'?'e-mail envoyé.':t==='not_configured'?'le service d’envoi n’est pas encore activé (clé du fournisseur à ajouter dans Supabase).':t==='no_recipient'?'aucune adresse e-mail enregistrée.':'échec, '+esc(t.replace(/^error:\s*/,'')));
 }
 function bindOverview(){
   document.querySelectorAll('#per button').forEach(b=>b.onclick=()=>{D.per=b.dataset.p;draw()});
   const g=$('#gov');if(g)g.onclick=()=>{S.tab='central';draw()};
   const sv=()=>{D.rapp={tel:$('#rt').value,mail:$('#rmm').value};LS.set('rapp',D.rapp)};const RT=()=>$('#rtx').textContent;
   $('#rsel').onchange=()=>{const r=D.reports.find(x=>x.day===$('#rsel').value);$('#rtx').textContent=r?r.body:rapportText()};
+  $('#raes').onclick=async()=>{const v=$('#rae').value.trim();if(v&&!/^\S+@\S+\.\S+$/.test(v)){toast('Adresse e-mail invalide.');return}try{await q(sb.from('settings').upsert({key:'report_email',value:v,updated_at:new Date().toISOString()},{onConflict:'key'}).select('key'));await loadSettings();toast(v?'Envoi automatique activé vers '+v:'Envoi automatique désactivé');draw()}catch(e){toast('Erreur : '+(e.message||e))}};
+  $('#raen').onclick=async()=>{if(!navigator.onLine){toast('Connexion requise.');return}try{const r=await sb.functions.invoke('send-report',{body:{force:true}});if(r.error)throw r.error;const st=(r.data||{}).status;await loadDirector();draw();toast(st==='sent'?'E-mail envoyé.':st==='not_configured'?'Service d’envoi non activé : clé du fournisseur à ajouter.':st==='no_recipient'?'Enregistrez d’abord une adresse e-mail.':'Échec de l’envoi : '+((r.data||{}).error||st))}catch(e){toast('Erreur : '+(e.message||e))}};
   $('#rnow').onclick=async()=>{try{await q(sb.rpc('report_now'));await loadDirector();draw();toast('Rapport enregistré')}catch(e){toast('Erreur : '+(e.message||e))}};
   $('#rwa').onclick=()=>{sv();let d=D.rapp.tel.replace(/\D/g,'');if(d.length<9){toast('Saisissez le numéro WhatsApp (9 chiffres).');return}if(d.length===9)d='221'+d;window.open('https://wa.me/'+d+'?text='+encodeURIComponent(RT()),'_blank')};
   $('#rem').onclick=()=>{sv();if(!/.+@.+/.test(D.rapp.mail)){toast('Saisissez une adresse e-mail valide.');return}location.href='mailto:'+D.rapp.mail+'?subject='+encodeURIComponent('Rapport du soir MINANE SHOP — '+dmyFull(dayStr(0)))+'&body='+encodeURIComponent(RT())};
@@ -1254,6 +1268,7 @@ function dirParam(){
   <div class="card"><h2>${ic('banknote')}Remises <small class="mu" style="font-weight:400">plafond et code du Directeur</small></h2><div class="row" style="align-items:flex-end"><div style="flex:1;min-width:150px"><label>Remise maximale sans code (% du ticket)</label><input id="rmx" type="number" min="0" max="100" value="${+SET.remise_max_pct>=0?SET.remise_max_pct:10}"></div><button class="btn sm" id="rms">Enregistrer</button></div>
   <div class="row" style="margin-top:12px;align-items:flex-end"><div style="flex:1;min-width:150px"><label>Code du Directeur (6 chiffres ou plus)</label><input id="rcd" type="password" inputmode="numeric" autocomplete="new-password" placeholder="${HASCODE?'Code défini : saisir un nouveau code pour le changer':'Aucun code défini'}"></div><button class="btn sm" id="rcs">Définir le code</button>${HASCODE?'<button class="btn sm sec" id="rcr">Supprimer le code</button>':''}</div>
   <p class="mu" style="font-size:12.5px;margin:8px 0 0">Au-delà du plafond, le caissier doit saisir ce code, que seul le Directeur connaît. Toutes les remises sont visibles dans Statistiques, avec celles qui ont demandé le code. Sans code défini, aucune remise au-delà du plafond n’est possible. Le code est vérifié par le serveur : il faut donc internet pour accorder une remise au-delà du plafond, et le plafond est aussi contrôlé à l’enregistrement de la vente (une vente hors plafond sans autorisation est refusée). Après 5 codes faux, le caissier est bloqué 10 minutes.</p></div>
+  <div class="card"><h2>${ic('truck')}Vente en gros dans les magasins <small class="mu" style="font-weight:400">choisir les magasins autorisés</small></h2><div class="row">${SHOPS.map(k=>`<label style="display:flex;gap:8px;align-items:center;margin:0;font-weight:600"><input type="checkbox" data-gs="${k}" ${(Array.isArray(SET.gros_stores)?SET.gros_stores:[]).includes(k)?'checked':''} style="width:20px;height:20px;margin:0">${esc(SHORT[k])}</label>`).join('')}</div><p class="mu" style="font-size:12.5px;margin:8px 0 0">Dans un magasin autorisé, la caisse propose une case « Vente en gros » : prix de gros de l’article (prix détail s’il n’a pas de prix de gros), nom du client obligatoire, paiement à crédit possible. Les ventes en gros sont repérées dans le journal et dans les exports. Le serveur refuse une vente en gros d’un magasin non autorisé.</p></div>
   ${labelsCard()}
   <div class="card"><h2>${ic('smartphone')}Paiements Wave et Orange Money <small class="mu" style="font-weight:400">numéro et QR de chaque point de vente</small></h2><div class="tw"><table><thead><tr><th>Point de vente</th><th>N° Wave</th><th>N° Orange Money</th><th>QR Wave</th></tr></thead><tbody>${['CEN',...SHOPS].map(k=>{const py=payOf(k);return `<tr><td>${k==='CEN'?'':dot(k)}<b>${esc(STORES[k])}</b></td><td><input data-pw2="${k}|wave" inputmode="tel" value="${esc(py.wave)}" style="width:130px"></td><td><input data-pw2="${k}|om" inputmode="tel" value="${esc(py.om)}" style="width:130px"></td><td style="white-space:nowrap">${py.qr?`<img src="${py.qr}" alt="" style="width:44px;height:44px;object-fit:contain;vertical-align:middle;background:#fff"> <button class="btn sm sec" data-qp="${k}">Affiche</button> <button class="btn sm sec" data-qd="${k}">Retirer</button>`:`<label class="btn sm sec" style="display:inline-flex;margin:0;cursor:pointer">Ajouter l’image<input type="file" accept="image/*" data-qf="${k}" style="display:none"></label>`}</td></tr>`}).join('')}</tbody></table></div><p class="mu" style="font-size:12.5px;margin:8px 0 0">Le QR Wave est l’image fournie par l’application Wave Marchand (capture ou fichier). À la caisse, elle s’affiche quand le client paie par Wave. Sur la facture du Central, le numéro Wave et le QR figurent pour les paiements des magasins et des grossistes.</p></div>
   <div class="card"><h2>Seuil d’alerte par article <small class="mu" style="font-weight:400">laisser vide pour le calcul automatique</small></h2><div class="tw" style="max-height:420px;overflow-y:auto"><table><thead><tr><th>Article</th><th class="n">Prix</th><th>Prix d’achat (F)</th><th class="n">Marge</th><th>Seuil personnalisé</th></tr></thead><tbody>${D.arts.map(a=>`<tr><td>${esc(a.name)}<div class="mu" style="font-size:12px">${esc(a.id)}</div></td><td class="n">${fmt(a.price)}</td><td style="width:130px"><input type="number" min="0" data-cp="${esc(a.id)}" placeholder="—" value="${D.costs[a.id]==null?'':D.costs[a.id]}"></td><td class="n mu">${D.costs[a.id]&&a.price?Math.round((a.price-D.costs[a.id])/a.price*100)+' %':'—'}</td><td style="width:150px"><input type="number" min="0" data-th="${esc(a.id)}" placeholder="Auto" value="${a.threshold==null?'':a.threshold}"></td></tr>`).join('')||'<tr><td colspan="5" class="mu">Aucun article.</td></tr>'}</tbody></table></div><p class="mu" style="font-size:12.5px;margin:8px 0 0">Le prix d’achat sert à calculer la marge dans Statistiques. Il n’est jamais visible dans les magasins.</p></div>`;
@@ -1285,6 +1300,7 @@ function bindParam(){
   const sv=async(k,v)=>q(sb.from('settings').upsert({key:k,value:v,updated_at:new Date().toISOString()},{onConflict:'key'}).select('key'));
   $('#ssv').onclick=async()=>{const g=+$('#sg').value,pr=+$('#sp').value,c=+$('#sc').value;if(!(g>=0)||!(pr>=0)||!(c>=0)){toast('Saisissez des nombres positifs.');return}try{await Promise.all([sv('seuil',Math.round(g)),sv('cher_min',Math.round(pr)),sv('seuil_cher',Math.round(c))]);await loadSettings();toast('Seuils enregistrés');await refresh()}catch(e){toast('Erreur : '+e.message)}};
   bindLabels();
+  document.querySelectorAll('[data-gs]').forEach(i=>i.onchange=async()=>{const v=[...document.querySelectorAll('[data-gs]')].filter(x=>x.checked).map(x=>x.dataset.gs);try{await sv('gros_stores',v);await loadSettings();toast('Enregistré')}catch(e){toast('Erreur : '+e.message)}});
   $('#rms').onclick=async()=>{const v=+$('#rmx').value;if(!(v>=0&&v<=100)){toast('Pourcentage entre 0 et 100.');return}try{await sv('remise_max_pct',Math.round(v*10)/10);await loadSettings();toast('Plafond enregistré');draw()}catch(e){toast('Erreur : '+e.message)}};
   $('#rcs').onclick=async()=>{const c=$('#rcd').value.trim();if(!/^\d{6,}$/.test(c)){toast('Code : 6 chiffres ou plus.');return}try{await q(sb.rpc('set_discount_code',{p_code:c}));await loadSettings();toast('Code enregistré. Retenez-le : il ne peut pas être relu.');draw()}catch(e){toast('Erreur : '+e.message)}};
   const rr=$('#rcr');if(rr)rr.onclick=async()=>{if(!confirm('Supprimer le code ? Plus aucune remise au-delà du plafond ne sera possible.'))return;try{await q(sb.rpc('set_discount_code',{p_code:''}));await loadSettings();toast('Code supprimé');draw()}catch(e){toast('Erreur : '+e.message)}};
@@ -1458,7 +1474,7 @@ async function expData(key){
     const sales=await qAll(()=>sb.from('sales').select('*,sale_items(*),sale_payments(*)').gte('sold_at',a).lte('sold_at',b).order('sold_at'));
     const vn=new Map((D.vendors||[]).map(v=>[v.id,v.full_name])),out=[];
     for(const s of sales){const pay=(s.sale_payments||[]).map(p=>(MET[p.method]||p.method)+' '+p.amount).join(' + ');
-      for(const i of (s.sale_items||[]))out.push({'Date':dtFr(s.sold_at),'Ticket':s.ticket_no,'Magasin':st(s.store_id),'Vendeur':vn.get(s.seller_id)||'','Client':s.customer_name||'','Référence':i.article_id,'Désignation':an(i.article_id),'Pointure':i.size,'Couleur':i.color,'Quantité':i.qty,'Prix unitaire':i.unit_price,'Montant ligne':i.qty*i.unit_price,'Remise du ticket':s.discount||0,'Total ticket':s.total,'Paiements du ticket':pay})}
+      for(const i of (s.sale_items||[]))out.push({'Date':dtFr(s.sold_at),'Ticket':s.ticket_no,'Magasin':st(s.store_id),'Vendeur':vn.get(s.seller_id)||'','Type':s.kind==='gros'?'Gros':'Détail','Client':s.customer_name||'','Référence':i.article_id,'Désignation':an(i.article_id),'Pointure':i.size,'Couleur':i.color,'Quantité':i.qty,'Prix unitaire':i.unit_price,'Montant ligne':i.qty*i.unit_price,'Remise du ticket':s.discount||0,'Total ticket':s.total,'Paiements du ticket':pay})}
     return out;
   }
   if(key==='depenses'){
@@ -1510,9 +1526,46 @@ function bindExport(){
       XLSX.writeFile(wb,'Minane-Sauvegarde-'+stamp()+'.xlsx');toast('Classeur exporté')}
     catch(e){$('#exerr').textContent='Erreur : '+(e.message||e)}b.disabled=false};
 }
+const HSTORE=t=>{const n=norm(t).replace(/[^a-z0-9]/g,'');if(!n)return '';if(/^(san|mir|hlm|tou|pik)$/.test(n))return n.toUpperCase();if(n.includes('chrisbella')||n.includes('christbella'))return 'MIR';if(n.includes('sandaga'))return 'SAN';if(n.includes('hlm'))return 'HLM';if(n.includes('touba'))return 'TOU';if(n.includes('pikine'))return 'PIK';return ''};
+const HDATE=v=>{if(v instanceof Date&&!isNaN(v))return v.toISOString().slice(0,10);if(typeof v==='number'&&v>20000&&v<80000)return new Date(Math.round((v-25569)*864e5)).toISOString().slice(0,10);const t=String(v||'').trim();let m=t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);if(m)return m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0');m=t.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/);if(m){const y=m[3].length===2?'20'+m[3]:m[3];return y+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0')}return ''};
+function parseHist(rows){
+  if(!rows.length)throw new Error('Le fichier est vide.');
+  const keys=Object.keys(rows[0]),find=ws=>keys.find(k=>ws.some(w=>norm(k).replace(/[^a-z0-9]/g,'').includes(w)));
+  const kd=find(['date','jour','day']),ks=find(['magasin','boutique','pointdevente','site','store']),kc=keys.find(k=>norm(k)==='ca')||find(['chiffredaffaires','ventes','recette','montant','total']),kt=find(['ticket','nbventes','clients']);
+  if(!kd||!ks||!kc)throw new Error('Colonnes introuvables. Il faut au moins : Date, Magasin, Chiffre d’affaires.');
+  const map=new Map(),badS=new Set();let badD=0,badC=0;
+  for(const r of rows){
+    const day=HDATE(r[kd]),st=HSTORE(r[ks]),ca=Math.round(+String(r[kc]??'').replace(/[\s\u00a0]/g,'').replace(',','.'));
+    if(!day){badD++;continue}if(!st){badS.add(String(r[ks]||'(vide)'));continue}if(!(ca>=0)||isNaN(ca)){badC++;continue}
+    const k=day+'|'+st,o=map.get(k)||{day,store_id:st,ca:0,tickets:0};o.ca+=ca;o.tickets+=kt?(Math.round(+String(r[kt]??'').replace(/\s/g,''))||0):0;map.set(k,o);
+  }
+  const list=[...map.values()].sort((a,b)=>a.day.localeCompare(b.day)||a.store_id.localeCompare(b.store_id));
+  return {list,badS:[...badS],badD,badC,total:rows.length};
+}
+function histCard(){
+  const H=D.himp;
+  const by={};if(H)H.list.forEach(r=>by[r.store_id]=(by[r.store_id]||0)+r.ca);
+  return `<div class="card"><h2>${ic('trending-up')}Reprise de l’historique des ventes (ancien système)</h2>
+  <div class="mu" style="margin-bottom:8px">Fichier Excel ou CSV avec une ligne par jour et par magasin : Date, Magasin, Chiffre d’affaires, Tickets (facultatif). Ces chiffres servent à comparer avec l’année précédente dans le tableau de bord. Un même jour et magasin déjà présent est remplacé.</div>
+  <div class="row" style="align-items:flex-end"><div style="flex:2;min-width:200px"><label style="margin-top:0">Fichier</label><input id="hfile" type="file" accept=".xlsx,.xls,.csv"></div><button class="btn sm sec" id="htpl">${ic('download',14)}Modèle</button></div>
+  <div id="hmsg" class="err">${esc(D.hmsg||'')}</div>
+  ${H?`<div style="margin-top:10px"><b>${H.list.length} jours-magasins · du ${dmyFull(H.list[0].day)} au ${dmyFull(H.list[H.list.length-1].day)} · ${fmt(H.list.reduce((t,r)=>t+r.ca,0))}</b>
+  <table style="margin-top:6px"><tr><th>Magasin</th><th class="n">Chiffre d’affaires</th></tr>${Object.keys(by).map(k=>`<tr><td>${esc(STORES[k])}</td><td class="n">${fmt(by[k])}</td></tr>`).join('')}</table>
+  ${(H.badS.length||H.badD||H.badC)?`<div class="mu" style="margin-top:6px;font-size:12.5px">Lignes ignorées : ${H.badD?H.badD+' sans date lisible. ':''}${H.badC?H.badC+' sans montant lisible. ':''}${H.badS.length?'Magasins non reconnus : '+esc(H.badS.slice(0,6).join(', '))+'. ':''}</div>`:''}
+  <button class="btn big" style="margin-top:12px" id="happly">${ic('upload',20)}Importer ${H.list.length} lignes</button></div>`:''}</div>`;
+}
+function bindHist(){
+  $('#htpl').onclick=()=>{const ws=XLSX.utils.json_to_sheet([{'Date':'15/03/2025','Magasin':'Sandaga','Chiffre d\'affaires':350000,'Tickets':14}]);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Historique');XLSX.writeFile(wb,'Minane-Modele-Historique.xlsx')};
+  $('#hfile').onchange=async e=>{const f=e.target.files[0];if(!f)return;D.himp=null;D.hmsg='';
+    try{const wb=await readBook(f);const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:'',cellDates:true,raw:true});D.himp=parseHist(rows);if(!D.himp.list.length){D.hmsg='Aucune ligne exploitable dans ce fichier.';D.himp=null}}
+    catch(err){D.hmsg=err.message}draw()};
+  const ap=$('#happly');if(ap)ap.onclick=async()=>{const H=D.himp;if(!confirm('Importer '+H.list.length+' lignes d’historique ?'))return;ap.disabled=true;ap.textContent='Envoi en cours…';
+    try{for(let i=0;i<H.list.length;i+=500)await q(sb.from('history_daily').upsert(H.list.slice(i,i+500),{onConflict:'day,store_id'}).select('day'));
+      D.himp=null;D.hmsg='';await loadDirector();toast('Historique importé');draw()}catch(err){D.hmsg='Erreur : '+(err.message||err);draw()}};
+}
 function dirImport(){
   const I=D.imp;
-  return expCard()+`<div class="card"><h2>${ic('clipboard-list')}Charger un inventaire (Excel ou CSV)</h2>
+  return expCard()+histCard()+`<div class="card"><h2>${ic('clipboard-list')}Charger un inventaire (Excel ou CSV)</h2>
   <div class="mu" style="margin-bottom:8px">Colonnes reconnues : référence, désignation, catégorie, prix, prix de gros, prix d'achat, pointure, couleur, quantité. Les quantités du fichier remplacent le stock du magasin choisi, pour les lignes présentes dans le fichier.</div>
   <label>Magasin concerné</label><select id="ist">${Object.keys(STORES).map(k=>`<option value="${k}" ${k===(D.istore||'SAN')?'selected':''}>${STORES[k]}</option>`).join('')}</select>
   <label>Fichier</label><input id="ifile" type="file" accept=".xlsx,.xls,.csv">
@@ -1521,7 +1574,7 @@ function dirImport(){
   <button class="btn big" style="margin-top:12px" id="iapply">${ic('upload',20)}Appliquer l’inventaire à ${esc(STORES[D.istore||'SAN'])}</button></div>`:''}</div>`;
 }
 function bindImport(){
-  bindExport();
+  bindExport();bindHist();
   $('#ist').onchange=e=>{D.istore=e.target.value;draw()};
   $('#ifile').onchange=async e=>{
     const f=e.target.files[0];if(!f)return;D.imp=null;D.imsg='';
