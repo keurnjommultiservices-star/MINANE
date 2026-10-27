@@ -13,9 +13,9 @@
 html,body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
-header.top{position:sticky;top:0;z-index:20;background:var(--g);color:#fff;display:flex;align-items:center;gap:10px;padding:10px 14px;padding-top:calc(10px + env(safe-area-inset-top))}
+header.top{flex-wrap:wrap;position:sticky;top:0;z-index:20;background:var(--g);color:#fff;display:flex;align-items:center;gap:10px;padding:10px 14px;padding-top:calc(10px + env(safe-area-inset-top))}
 header.top h1{font-size:16px;margin:0;flex:1;font-weight:700;line-height:1.2}
-.wxbar{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;padding:7px 10px;background:#fff;border-bottom:1px solid var(--bd,#e3e7e3)}
+.wxbar{display:flex;gap:6px;align-items:center;flex:none}
 .wxbar span{display:inline-flex;align-items:center;gap:6px;background:#f2f5f2;border-radius:999px;padding:4px 9px;font-size:13px;font-weight:600;color:#26332b;white-space:nowrap}
 .wxbar .ic{width:16px;height:16px}
 header.top small{display:block;font-weight:400;opacity:.85;font-size:12px}
@@ -31,7 +31,7 @@ main{padding:12px;max-width:1200px;margin:0 auto}
 .grid2{display:grid;grid-template-columns:1.6fr 1fr;gap:12px}
 @media(max-width:820px){.grid2{grid-template-columns:1fr}}
 @media(max-width:900px){nav.tabs{position:static;display:grid;grid-template-columns:repeat(4,1fr);gap:0;padding:0}nav.tabs button{padding:8px 2px;font-size:11px;line-height:1.15;display:flex;flex-direction:column;align-items:center;gap:3px;white-space:normal;text-align:center;border-bottom-width:3px}nav.tabs button .ic{margin:0;width:22px;height:22px}nav.tabs button .badge{position:absolute;margin:-4px 0 0 18px}}
-@media(max-width:600px){header.top .lbl{display:none}header.top .pill .ic{margin-right:0}header.top{gap:8px}header.top h1{min-width:0}}
+@media(max-width:600px){header.top .wxbar{order:9;flex:1 0 100%;justify-content:center}header.top .lbl{display:none}header.top .pill .ic{margin-right:0}header.top{gap:8px}header.top h1{min-width:0}}
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
 .art{background:#fff;border:1px solid var(--bd);border-radius:10px;padding:10px;text-align:left;display:flex;flex-direction:column;gap:4px;min-height:84px}
 .art:active{background:#eaf3ed}
@@ -88,7 +88,7 @@ header.top .pill .ic{margin-right:4px;width:14px;height:14px;vertical-align:-2px
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 'use strict';
-const BUILD='2.10.8';
+const BUILD='2.10.9';
 const SB_URL='https://ehnptnwvwshmcaqrupru.supabase.co';
 const SB_KEY='sb_publishable_h3I7whuNEfbnfub_Q0eP6w_e77YMUqn';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
@@ -260,7 +260,7 @@ function paintNet(){
 }
 function shell(tabs,body){
   const who=me.role==='cashier'?STORES[me.store_id]:me.role==='central'?STORES.CEN:me.role==='viewer'?'Consultation':'Direction';
-  return `<header class="top"><img class="hl" src="logo.png" alt="Minane"><h1>${esc(who)}<small>${esc(me.full_name)} · v${BUILD}</small></h1><span id="net" class="pill ok">En ligne</span><button class="pill" id="pw" style="border:0;color:#fff">${ic('key-round',14)}<span class="lbl">Mot de passe</span></button><button class="pill" id="lo" style="border:0;color:#fff">${ic('log-out',14)}<span class="lbl">Quitter</span></button></header><div class="wxbar" id="wx"></div>
+  return `<header class="top"><img class="hl" src="logo.png" alt="Minane"><h1>${esc(who)}<small>${esc(me.full_name)} · v${BUILD}</small></h1><div class="wxbar" id="wx"></div><span id="net" class="pill ok">En ligne</span><button class="pill" id="pw" style="border:0;color:#fff">${ic('key-round',14)}<span class="lbl">Mot de passe</span></button><button class="pill" id="lo" style="border:0;color:#fff">${ic('log-out',14)}<span class="lbl">Quitter</span></button></header>
   <nav class="tabs">${tabs.map(([k,l])=>`<button data-tab="${k}" class="${S.tab===k?'on':''}">${l}</button>`).join('')}</nav><main>${body}</main>`;
 }
 function bindShell(){
