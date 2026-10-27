@@ -85,7 +85,7 @@ header.top .pill .ic{margin-right:4px;width:14px;height:14px;vertical-align:-2px
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 'use strict';
-const BUILD='2.10.1';
+const BUILD='2.10.2';
 const SB_URL='https://ehnptnwvwshmcaqrupru.supabase.co';
 const SB_KEY='sb_publishable_h3I7whuNEfbnfub_Q0eP6w_e77YMUqn';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
@@ -111,6 +111,7 @@ async function cached(key,fn){try{const v=await fn();LS.set(key,v);return v}catc
 
 let me=null,S={tab:'caisse',cart:[],search:'',gros:false};
 const isView=()=>!!me&&me.role==='view'+'er';
+const creditOk=()=>!!me&&SET.store_credit===true;
 const grosOk=()=>!!me&&Array.isArray(SET.gros_stores)&&SET.gros_stores.includes(me.store_id);
 const unitPrice=a=>(S.gros&&grosOk()&&a.wholesale_price)?a.wholesale_price:a.price;
 let ARTS=[],STK=[],VEND=[],DAYSALES=[],DAYVERS=[],DAYCLOS=null;
@@ -283,7 +284,7 @@ window.addEventListener('offline',paintNet);
 const mkey=l=>l.article_id+'|'+l.size+'|'+l.color;
 function artStock(id,es){return es.filter(r=>r.article_id===id).reduce((s,r)=>s+r.qty,0)}
 function drawCashier(){
-  const tabs=[['caisse',ic('shopping-cart')+'Caisse'],['journal',ic('receipt')+'Journal'],['stock',ic('package')+'Stock'],['credits',ic('users')+'Crédits'],['livraisons',ic('truck')+'Livraisons'],['retours',ic('undo-2')+'Retours'],['cloture',ic('lock')+'Clôture']];
+  const tabs=[['caisse',ic('shopping-cart')+'Caisse'],['journal',ic('receipt')+'Journal'],['stock',ic('package')+'Stock'],...(creditOk()?[['credits',ic('users')+'Crédits']]:[]),['livraisons',ic('truck')+'Livraisons'],['retours',ic('undo-2')+'Retours'],['cloture',ic('lock')+'Clôture']];
   let b='';
   if(S.tab==='caisse')b=viewCaisse();
   else if(S.tab==='livraisons')b=recvBlock()+dirBons();
@@ -356,7 +357,7 @@ function payModal(){
   <label>Wave</label><input id="pw" type="number" inputmode="numeric" min="0" value="0">
   <label>Orange Money</label><input id="po" type="number" inputmode="numeric" min="0" value="0">
   <div id="wpanel"></div>
-  <div class="total" style="font-size:16px"><span>Reste à crédit</span><span id="rest">0 F</span></div>
+  <div class="total" style="font-size:16px;${creditOk()?"":"display:none"}"><span>Reste à crédit</span><span id="rest">0 F</span></div>
   <div id="cred" style="display:none"><label>${S.gros?'Nom du client (obligatoire pour une vente en gros)':'Nom du client (obligatoire pour un crédit)'}</label><input id="cn"><label>Téléphone</label><input id="cp" inputmode="tel"><label>Date limite</label><input id="cd" type="date"></div>
   <div id="perr" class="err"></div>
   <button class="btn big" style="margin-top:12px" id="ok">${ic('check',20)}Valider la vente</button><button class="btn sec big" style="margin-top:8px" id="cx">Annuler</button>`);
@@ -368,7 +369,7 @@ function payModal(){
     if(o>0)h+=`<div class="card" style="margin:10px 0 0;padding:12px;text-align:center"><b>Orange Money · ${fmt(o)}</b><div class="mu" style="font-size:13px">${pay.om?'Numéro OM du magasin : <b>'+esc(pay.om)+'</b>':'Numéro OM non configuré (Paramètres)'}</div></div>`;
     if(w>0||o>0)h+=`<label style="display:flex;gap:10px;align-items:center;margin-top:10px;font-weight:600"><input type="checkbox" id="wok" style="width:22px;height:22px;flex:none;margin:0"><span>Paiement reçu sur le téléphone du magasin</span></label>`;
     const was=$('#wok',m)&&$('#wok',m).checked;$('#wpanel',m).innerHTML=h;if(was&&$('#wok',m))$('#wok',m).checked=true};
-  const upd=()=>{const rest=net()-val('#pc')-val('#pw')-val('#po');$('#rest',m).textContent=fmt(Math.max(0,rest));$('#cred',m).style.display=(rest>0||S.gros)?'block':'none';
+  const upd=()=>{const rest=net()-val('#pc')-val('#pw')-val('#po');$('#rest',m).textContent=fmt(Math.max(0,rest));$('#cred',m).style.display=((rest>0&&creditOk())||S.gros)?'block':'none';
     $('#ptot',m).textContent=fmt(net());$('#pdi',m).textContent=disc()?('= '+pctOf().toFixed(1).replace('.',',')+' % du total'):'';$('#pdk',m).style.display=over()?'block':'none';return rest};
   $('#pd',m).oninput=()=>{if(val('#pw')===0&&val('#po')===0)$('#pc',m).value=net();upd();wp()};
   $('#allc',m).onclick=()=>{$('#pc',m).value=net();$('#pw',m).value=0;$('#po',m).value=0;upd();wp()};
@@ -379,6 +380,7 @@ function payModal(){
     const rest=upd();
     if(rest<0){$('#perr',m).textContent='Le montant reçu dépasse le total.';return}
     if((val('#pw')>0||val('#po')>0)&&!($('#wok',m)&&$('#wok',m).checked)){$('#perr',m).textContent='Confirmez que le paiement Wave / Orange Money est bien reçu.';return}
+    if(rest>0&&!creditOk()&&!S.gros){$('#perr',m).textContent='Le montant reçu est inférieur au total (vente à crédit non autorisée).';return}
     if((rest>0||S.gros)&&!$('#cn',m).value.trim()){$('#perr',m).textContent=S.gros?'Indiquez le nom du client pour une vente en gros.':'Indiquez le nom du client pour le crédit.';return}
     let tok=null;
     if(over()){
