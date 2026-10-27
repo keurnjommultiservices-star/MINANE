@@ -85,7 +85,7 @@ header.top .pill .ic{margin-right:4px;width:14px;height:14px;vertical-align:-2px
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script>
 'use strict';
-const BUILD='2.10.5';
+const BUILD='2.10.6';
 const SB_URL='https://ehnptnwvwshmcaqrupru.supabase.co';
 const SB_KEY='sb_publishable_h3I7whuNEfbnfub_Q0eP6w_e77YMUqn';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
@@ -251,7 +251,7 @@ function paintNet(){
 }
 function shell(tabs,body){
   const who=me.role==='cashier'?STORES[me.store_id]:me.role==='central'?STORES.CEN:me.role==='viewer'?'Consultation':'Direction';
-  return `<header class="top"><img class="hl" src="logo.png" alt="Minane"><h1>${esc(who)}<small>${esc(me.full_name)}</small></h1><span id="net" class="pill ok">En ligne</span><button class="pill" id="pw" style="border:0;color:#fff">${ic('key-round',14)}<span class="lbl">Mot de passe</span></button><button class="pill" id="lo" style="border:0;color:#fff">${ic('log-out',14)}<span class="lbl">Quitter</span></button></header>
+  return `<header class="top"><img class="hl" src="logo.png" alt="Minane"><h1>${esc(who)}<small>${esc(me.full_name)} · v${BUILD}</small></h1><span id="net" class="pill ok">En ligne</span><button class="pill" id="pw" style="border:0;color:#fff">${ic('key-round',14)}<span class="lbl">Mot de passe</span></button><button class="pill" id="lo" style="border:0;color:#fff">${ic('log-out',14)}<span class="lbl">Quitter</span></button></header>
   <nav class="tabs">${tabs.map(([k,l])=>`<button data-tab="${k}" class="${S.tab===k?'on':''}">${l}</button>`).join('')}</nav><main>${body}</main>`;
 }
 function bindShell(){
